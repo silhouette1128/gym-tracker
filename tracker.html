@@ -1,0 +1,1571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Daily Log — Workouts & Meals</title>
+<style>
+  /* ============================================
+     DESIGN TOKENS
+     Central place for colors, fonts, spacing.
+     Change a value here and it updates everywhere.
+     ============================================ */
+  :root {
+    --bg: #EDE8D0;          /* warm paper */
+    --surface: #F8F4E3;     /* slightly lighter card surface, still warm */
+    --ink: #2B2620;         /* warm near-black, not pure black */
+    --ink-soft: #6B6355;    /* muted warm brown-gray */
+    --border: #D9D0AE;      /* warm tan border, like an aged page edge */
+    --accent: #3B5D42;      /* deep forest green: primary actions */
+    --accent-hover: #2C4732;
+    --accent-soft: #DEE6DA;
+    --workout: #3B5D42;     /* forest green = movement */
+    --workout-soft: #DEE6DA;
+    --food: #A56A2D;        /* burnt ochre = fuel */
+    --food-soft: #EFE1C8;
+    --danger: #9C4A3C;
+    --danger-soft: #F1DCD3;
+    --radius: 10px;
+    --shadow-sm: 0 1px 3px rgba(43,38,32,0.08);
+    --shadow-md: 0 8px 24px rgba(43,38,32,0.14);
+    --font-display: -apple-system, "Segoe UI", Inter, sans-serif;
+    --font-heading: Georgia, "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
+    --font-mono: "SF Mono", "Roboto Mono", Menlo, monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  /* People who've asked their OS to minimize motion get near-instant
+     transitions instead of animations — accessibility, not a style choice. */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+    }
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-display);
+    margin: 0;
+    padding: 32px 20px 80px 76px;
+  }
+
+  .wrap { max-width: 1080px; margin: 0 auto; }
+
+  /* ---------- Two-column layout (Log & History) ---------- */
+  .view-grid {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 28px;
+    align-items: start;
+  }
+  .view-grid.history-grid { grid-template-columns: 360px 1fr; }
+  @media (max-width: 860px) {
+    .view-grid, .view-grid.history-grid { grid-template-columns: 1fr; }
+  }
+
+  /* ---------- Sidebar nav ---------- */
+  .sidebar {
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    width: 56px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 24px 8px;
+    gap: 6px;
+    overflow: hidden;
+    z-index: 50;
+    transition: width 0.22s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.22s ease;
+  }
+  .sidebar:hover { width: 176px; box-shadow: var(--shadow-md); }
+  .nav-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 42px;
+    padding: 0 9px;
+    border-radius: 9px;
+    border: 1px solid transparent;
+    background: transparent;
+    cursor: pointer;
+    color: var(--ink-soft);
+    transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+  }
+  .nav-btn:hover { background: var(--bg); transform: translateX(2px); }
+  .nav-btn:active { transform: translateX(2px) scale(0.96); }
+  .nav-btn.active {
+    background: var(--accent-soft, #E4F0EC);
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+  .logo-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 9px 16px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .logo-badge {
+    width: 34px; height: 34px;
+    flex-shrink: 0;
+    border-radius: 9px;
+    background: var(--accent);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: center;
+    justify-items: center;
+    color: var(--surface);
+  }
+  .logo-badge span {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 9px;
+    line-height: 1;
+  }
+  .logo-wordmark {
+    font-family: var(--font-heading);
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    color: var(--ink);
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.15s ease 0.05s;
+  }
+  .sidebar:hover .logo-wordmark { opacity: 1; }
+
+  .nav-icon { flex-shrink: 0; width: 22px; display: flex; align-items: center; justify-content: center; }
+  .nav-icon svg { width: 19px; height: 19px; }
+  .nav-label {
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.15s ease 0.05s;
+  }
+  .sidebar:hover .nav-label { opacity: 1; }
+
+  /* ---------- View switching ---------- */
+  .view { display: none; }
+  .view.active { display: block; animation: viewIn 0.25s ease; }
+  @keyframes viewIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ---------- Day list (History view) ---------- */
+  .day-list {
+    margin-bottom: 24px;
+    max-height: 520px;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+  }
+  .day-row {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    padding: 15px 18px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background 0.15s ease, padding-left 0.15s ease;
+  }
+  .day-row:last-child { border-bottom: none; }
+  .day-row:hover { background: var(--bg); padding-left: 22px; }
+  .day-row-date {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    width: 72px;
+    flex-shrink: 0;
+  }
+  .day-row-main { flex: 1; min-width: 0; }
+  .day-row-focus { font-family: var(--font-heading); font-size: 15px; font-weight: 700; margin-bottom: 3px; }
+  .day-row-summary { font-family: var(--font-mono); font-size: 12.5px; color: var(--ink-soft); }
+
+  /* ---------- Charts ---------- */
+  .charts-row { display: flex; gap: 14px; flex-wrap: wrap; }
+  .chart-card {
+    flex: 1;
+    min-width: 240px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.2s ease;
+  }
+  .chart-card:hover { box-shadow: var(--shadow-md); }
+  .chart-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .chart-card-title {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--ink-soft);
+  }
+  .chart-select {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 5px 8px;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    max-width: 130px;
+    cursor: pointer;
+  }
+  .chart-card canvas { width: 100%; height: auto; display: block; }
+
+  /* ---------- Header ---------- */
+  .header { margin-bottom: 28px; }
+  .header .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-bottom: 4px;
+  }
+  .header h1 { font-family: var(--font-heading); font-size: 30px; margin: 0; font-weight: 700; letter-spacing: -0.01em; }
+  .header-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+  .date-select {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--ink);
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .date-select:hover { border-color: var(--accent); }
+  .date-select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  /* ---------- Stat row ---------- */
+  .stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .stat-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+  .stat-card .label {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 600; color: var(--ink-soft); margin-bottom: 8px;
+  }
+  .stat-card .label svg { width: 14px; height: 14px; flex-shrink: 0; }
+  .stat-card .value { font-family: var(--font-mono); font-size: 26px; font-weight: 700; }
+  .stat-card.workout .value { color: var(--workout); }
+  .stat-card.food .value { color: var(--food); }
+
+  /* ---------- Add entry panel ---------- */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+    margin-bottom: 24px;
+    box-shadow: var(--shadow-sm);
+  }
+  .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+  .log-target-note {
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin-bottom: 10px;
+  }
+  .log-target-note strong { color: var(--ink); }
+  .tab-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--ink-soft);
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  }
+  .tab-btn:hover { transform: translateY(-1px); }
+  .tab-btn:active { transform: translateY(0) scale(0.98); }
+  .tab-btn.active[data-type="workout"] {
+    background: var(--workout-soft); color: var(--workout); border-color: var(--workout);
+  }
+  .tab-icon svg { width: 15px; height: 15px; display: block; }
+  .tab-btn.active[data-type="food"] {
+    background: var(--food-soft); color: var(--food); border-color: var(--food);
+  }
+
+  .form-panel { display: none; }
+  .form-panel.active { display: block; }
+
+  .field-row { display: flex; gap: 10px; margin-bottom: 10px; }
+  .field { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+  .field.grow-2 { flex: 2; }
+  .field label { font-size: 12px; font-weight: 600; color: var(--ink-soft); }
+  .field input {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    padding: 9px 10px;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--ink);
+    width: 100%;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .field input:hover { border-color: #C9C7C0; }
+  .field input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  .submit-btn {
+    width: 100%;
+    padding: 11px;
+    border-radius: 8px;
+    border: none;
+    background: var(--accent);
+    color: white;
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 4px;
+    transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+  }
+  .submit-btn:hover { background: var(--accent-hover); box-shadow: var(--shadow-sm); transform: translateY(-1px); }
+  .submit-btn:active { transform: translateY(0) scale(0.98); }
+
+  .error-msg { font-size: 12px; color: var(--danger); margin-top: 6px; min-height: 14px; }
+
+  /* ---------- Day focus ---------- */
+  .day-focus {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow-sm);
+  }
+  .day-focus label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    margin-bottom: 6px;
+  }
+  .day-focus input {
+    width: 100%;
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-weight: 600;
+    padding: 8px 10px;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--ink);
+    transition: border-color 0.15s ease;
+  }
+  .day-focus input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  /* ---------- Autocomplete ---------- */
+  .autocomplete-wrap { position: relative; }
+  .suggestions {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    z-index: 10;
+    overflow: hidden;
+  }
+  .suggestions.open { display: block; }
+  .suggestion-item {
+    padding: 9px 12px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .suggestion-item:hover, .suggestion-item.highlighted {
+    background: var(--accent-soft, #E4F0EC);
+  }
+
+  /* ---------- Logs box ---------- */
+  .logs-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow-sm);
+  }
+  .logs-box-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+  }
+  .logs-box-title {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-soft);
+  }
+  .logs-box-count { font-family: var(--font-mono); font-size: 12px; color: var(--ink-soft); }
+  .logs-box-body {
+    max-height: 520px;
+    overflow-y: auto;
+    padding: 12px;
+    background: var(--bg);
+  }
+
+  /* ---------- Log items ---------- */
+  .log-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 8px;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    animation: itemIn 0.2s ease;
+  }
+  .log-item:last-child { margin-bottom: 0; }
+  .log-item:hover { transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+  @keyframes itemIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .log-icon {
+    width: 40px; height: 40px;
+    border-radius: 11px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .log-icon svg { width: 19px; height: 19px; }
+  .log-icon.workout { background: var(--workout-soft); color: var(--workout); }
+  .log-icon.food { background: var(--food-soft); color: var(--food); }
+  .log-main { flex: 1; min-width: 0; }
+  .log-title { font-family: var(--font-heading); font-size: 16px; font-weight: 700; }
+  .log-sub { font-family: var(--font-mono); font-size: 12.5px; color: var(--ink-soft); margin-top: 3px; }
+  .log-actions { display: flex; gap: 2px; flex-shrink: 0; }
+  .log-edit-btn, .log-delete {
+    width: 30px; height: 30px;
+    display: flex; align-items: center; justify-content: center;
+    background: none; border: none; border-radius: 8px;
+    color: var(--ink-soft);
+    cursor: pointer; line-height: 1;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .log-edit-btn svg, .log-delete svg { width: 15px; height: 15px; }
+  .log-edit-btn:hover { background: var(--accent-soft); color: var(--accent); }
+  .log-delete:hover { background: var(--danger-soft); color: var(--danger); }
+
+  /* ---------- Inline edit form ---------- */
+  .log-edit-form { width: 100%; display: flex; flex-direction: column; gap: 8px; }
+  .log-edit-row { display: flex; gap: 8px; }
+  .log-edit-row input {
+    flex: 1; min-width: 0;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    padding: 8px 9px;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--ink);
+  }
+  .log-edit-row input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .log-edit-actions { display: flex; gap: 8px; justify-content: flex-end; }
+  .edit-save, .edit-cancel {
+    padding: 6px 14px;
+    border-radius: 7px;
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.1s ease, background 0.15s ease;
+  }
+  .edit-save { border: none; background: var(--accent); color: white; }
+  .edit-save:hover { background: var(--accent-hover); }
+  .edit-cancel { border: 1px solid var(--border); background: var(--surface); color: var(--ink-soft); }
+  .edit-cancel:hover { background: var(--bg); }
+  .edit-save:active, .edit-cancel:active { transform: scale(0.96); }
+
+  .empty-state {
+    text-align: center; color: var(--ink-soft); font-size: 13px;
+    padding: 32px 12px; border: 1px dashed var(--border); border-radius: var(--radius);
+  }
+  .storage-note {
+    text-align: center; color: var(--ink-soft); font-size: 11px;
+    margin-top: 24px;
+  }
+</style>
+</head>
+<body>
+
+  <div class="sidebar">
+    <div class="logo-wrap">
+      <div class="logo-badge">
+        <span>D</span><span>L</span><span>W</span><span>M</span>
+      </div>
+      <div class="logo-wordmark">DLWM</div>
+    </div>
+    <button class="nav-btn active" id="nav-log" type="button" title="Log">
+      <span class="nav-icon" data-icon="logbook"></span><span class="nav-label">Log</span>
+    </button>
+    <button class="nav-btn" id="nav-history" type="button" title="History">
+      <span class="nav-icon" data-icon="history"></span><span class="nav-label">History</span>
+    </button>
+  </div>
+
+  <div class="wrap">
+  <div id="view-log" class="view active">
+    <div class="header">
+      <div class="eyebrow" id="date-label">—</div>
+      <div class="header-row">
+        <h1>Your log</h1>
+        <input type="date" class="date-select" id="date-select" />
+      </div>
+    </div>
+
+    <div class="view-grid">
+    <div class="col-left">
+    <div class="stats">
+      <div class="stat-card workout">
+        <div class="label"><span data-icon="dumbbell"></span> Workout entries</div>
+        <div class="value" id="workout-count">0</div>
+      </div>
+      <div class="stat-card food">
+        <div class="label"><span data-icon="flame"></span> Calories logged</div>
+        <div class="value" id="calorie-total">0</div>
+      </div>
+    </div>
+
+    <div class="day-focus autocomplete-wrap">
+      <label for="day-focus-input">Day focus (optional)</label>
+      <input type="text" id="day-focus-input" placeholder="e.g. Chest, Shoulders, Triceps" autocomplete="off" />
+      <div class="suggestions" id="focus-suggestions"></div>
+    </div>
+
+    <div class="panel">
+      <div class="log-target-note" id="log-target-note"></div>
+      <div class="tabs">
+        <button class="tab-btn active" data-type="workout" id="tab-workout" type="button">
+          <span class="tab-icon" data-icon="dumbbell"></span> Workout
+        </button>
+        <button class="tab-btn" data-type="food" id="tab-food" type="button">
+          <span class="tab-icon" data-icon="bowl"></span> Meal
+        </button>
+      </div>
+
+      <!-- NOTE: no <form> tag here on purpose — plain divs + a button with
+           a click handler, since <form> submission behaves inconsistently
+           inside sandboxed environments like Claude's artifact viewer. -->
+      <div class="form-panel active" id="panel-workout">
+        <div class="field-row">
+          <div class="field grow-2 autocomplete-wrap">
+            <label for="w-exercise">Exercise</label>
+            <input type="text" id="w-exercise" placeholder="Bench Press" autocomplete="off" />
+            <div class="suggestions" id="exercise-suggestions"></div>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="w-weight">Weight (kg)</label>
+            <input type="number" id="w-weight" placeholder="60" />
+          </div>
+          <div class="field">
+            <label for="w-sets">Sets</label>
+            <input type="number" id="w-sets" placeholder="3" />
+          </div>
+          <div class="field">
+            <label for="w-reps">Reps</label>
+            <input type="number" id="w-reps" placeholder="8" />
+          </div>
+        </div>
+        <button class="submit-btn" id="submit-workout" type="button">Log workout</button>
+        <div class="error-msg" id="w-error"></div>
+      </div>
+
+      <div class="form-panel" id="panel-food">
+        <div class="field-row">
+          <div class="field grow-2">
+            <label for="f-name">Food</label>
+            <input type="text" id="f-name" placeholder="Chicken rice bowl" />
+          </div>
+          <div class="field">
+            <label for="f-calories">Calories</label>
+            <input type="number" id="f-calories" placeholder="550" />
+          </div>
+        </div>
+        <button class="submit-btn" id="submit-food" type="button">Log meal</button>
+        <div class="error-msg" id="f-error"></div>
+      </div>
+    </div>
+    </div>
+
+    <div class="col-right">
+    <div class="logs-box">
+      <div class="logs-box-header">
+        <div class="logs-box-title" id="log-heading">Entries today</div>
+        <div class="logs-box-count" id="logs-count"></div>
+      </div>
+      <div class="logs-box-body" id="log-list"></div>
+    </div>
+    </div>
+    </div>
+
+    <div class="storage-note">Saved to this browser only, via localStorage.</div>
+  </div>
+
+  <div id="view-history" class="view">
+    <div class="header">
+      <div class="eyebrow">History</div>
+      <h1>Past days &amp; trends</h1>
+    </div>
+
+    <div class="view-grid history-grid">
+    <div class="col-left">
+    <div class="day-list" id="day-list"></div>
+    </div>
+
+    <div class="col-right">
+    <div class="charts-row">
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <div class="chart-card-title">Weight trend</div>
+          <select class="chart-select" id="chart-exercise-select"></select>
+        </div>
+        <canvas id="weight-chart" width="320" height="200"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <div class="chart-card-title">Calories trend</div>
+        </div>
+        <canvas id="calorie-chart" width="320" height="200"></canvas>
+      </div>
+    </div>
+    </div>
+    </div>
+  </div>
+  </div>
+
+<script>
+  /* ============================================
+     ICONS
+     A small set of hand-drawn line icons, all sharing the
+     same stroke weight and style so they read as one family.
+     Each uses stroke="currentColor" so it automatically
+     takes on whatever text color its container has —
+     no separate color logic needed per icon.
+     ============================================ */
+  const ICON_ATTRS = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
+  const ICONS = {
+    history: `<svg ${ICON_ATTRS}><path d="M3 3v5h5"/><path d="M3.05 13a9 9 0 1 0 2.5-7.65L3 8"/><path d="M12 7v5l3.5 2"/></svg>`,
+    logbook: `<svg ${ICON_ATTRS}><path d="M6 4a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8l-4-4Z"/><path d="M14 4v4h4"/><path d="M9 13h6"/><path d="M9 17h6"/><path d="M9 9h2"/></svg>`,
+    dumbbell: `<svg ${ICON_ATTRS}><path d="M4 9v6"/><path d="M2 10.5v3"/><path d="M20 9v6"/><path d="M22 10.5v3"/><path d="M7 12h10"/><path d="M7 8.5v7"/><path d="M17 8.5v7"/></svg>`,
+    bowl: `<svg ${ICON_ATTRS}><path d="M4 13h16"/><path d="M5 13a7 6.2 0 0 0 14 0"/><path d="M9 13V8.5c0-1 .5-2 1.5-2.3"/><path d="M13.5 13V9.3c0-1.1.6-1.9 1.5-2.1"/></svg>`,
+    edit: `<svg ${ICON_ATTRS}><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`,
+    trash: `<svg ${ICON_ATTRS}><path d="M4 7h16"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/></svg>`,
+    flame: `<svg ${ICON_ATTRS}><path d="M12 2c1.2 3-2.8 4.2-2.8 8.2a2.8 2.8 0 0 0 5.6 0c0-1-.9-1.9-.9-1.9s1.9 1 1.9 3.9a4.8 4.8 0 0 1-9.6 0C6.2 7.4 10 6.2 12 2Z"/></svg>`,
+  };
+
+  // Fills every element tagged data-icon="name" with its matching SVG.
+  // Runs once on load — static icons (sidebar, tabs, stat labels) all
+  // live in the HTML as empty placeholders until this fires.
+  function mountStaticIcons() {
+    document.querySelectorAll("[data-icon]").forEach((el) => {
+      el.innerHTML = ICONS[el.dataset.icon] || "";
+    });
+  }
+
+  /* ============================================
+     STATE
+     `entries` is our single source of truth: every
+     workout and meal ever logged lives in this array.
+     We keep it in memory, and mirror it to localStorage
+     every time it changes.
+     ============================================ */
+  const STORAGE_KEY = "gym-diet-tracker-entries";
+  let entries = [];
+  let editingId = null; // id of the entry currently shown in edit mode, or null
+
+  function todayKey() {
+    // Gives us "2026-08-06" so we can group entries by day
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  function formatDateLabel(key) {
+    const d = new Date(key + "T00:00:00");
+    return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+  }
+
+  const TODAY = todayKey();
+
+  // Which day the log is currently showing. Starts on today,
+  // but the person can pick any date via the date picker —
+  // including days with nothing logged, to confirm that too.
+  let selectedDate = TODAY;
+
+  // Syncs the <input type="date"> element to match selectedDate.
+  // Handy because its value format ("YYYY-MM-DD") already matches
+  // our dateKey format exactly — no conversion needed.
+  function syncDateInput() {
+    document.getElementById("date-select").value = selectedDate;
+  }
+
+  /* ============================================
+     PERSISTENCE
+     localStorage is a standard browser feature — a small
+     key/value store built into every browser. It only
+     stores strings, so we convert our array to/from JSON text.
+     Unlike window.storage, these calls are synchronous —
+     no await needed.
+     ============================================ */
+  function loadEntries() {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    entries = raw ? JSON.parse(raw) : [];
+  }
+
+  function saveEntries() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+  }
+
+  /* ============================================
+     KNOWN EXERCISES (for autocomplete)
+     A starter list ships built-in. Any new exercise you
+     type that isn't a close match to something existing
+     gets added here automatically — the list grows with you.
+     ============================================ */
+  const EXERCISES_KEY = "gym-diet-tracker-known-exercises";
+  const SEED_EXERCISES = [
+    // Chest
+    "Bench Presses", "Incline Bench Presses", "Decline Bench Presses",
+    "Dumbbell Presses", "Incline Dumbbell Presses", "Chest Flys", "Cable Flys",
+    "Push Ups", "Dips",
+    // Back
+    "Deadlifts", "Romanian Deadlifts", "Barbell Rows", "Dumbbell Rows",
+    "Pull Ups", "Chin Ups", "Lat Pulldowns", "Seated Cable Rows",
+    "T-Bar Rows", "Shrugs",
+    // Shoulders
+    "Overhead Presses", "Shoulder Presses", "Push Presses", "Arnold Presses",
+    "Lateral Raises", "Front Raises", "Rear Delt Flys", "Face Pulls",
+    "Upright Rows",
+    // Biceps
+    "Bicep Curls", "Hammer Curls", "Preacher Curls", "Concentration Curls",
+    "Cable Curls", "Barbell Curls", "Incline Dumbbell Curls",
+    // Triceps
+    "Tricep Pushdowns", "Skull Crushers", "Overhead Tricep Extensions",
+    "Close Grip Bench Presses", "Tricep Dips", "Cable Kickbacks",
+    // Forearms
+    "Wrist Curls", "Reverse Wrist Curls", "Reverse Curls", "Farmer's Carries",
+    // Legs
+    "Squats", "Front Squats", "Hack Squats", "Goblet Squats", "Leg Presses",
+    "Leg Extensions", "Leg Curls", "Lunges", "Bulgarian Split Squats",
+    "Hip Thrusts",
+    // Calves
+    "Calf Raises", "Seated Calf Raises", "Standing Calf Raises",
+    // Abs
+    "Crunches", "Sit Ups", "Leg Raises", "Hanging Leg Raises",
+    "Russian Twists", "Planks", "Bicycle Crunches", "Mountain Climbers",
+    "Cable Crunches", "V Ups",
+  ];
+  let knownExercises = [];
+
+  function loadKnownExercises() {
+    const raw = localStorage.getItem(EXERCISES_KEY);
+    knownExercises = raw ? JSON.parse(raw) : [...SEED_EXERCISES];
+  }
+
+  function saveKnownExercises() {
+    localStorage.setItem(EXERCISES_KEY, JSON.stringify(knownExercises));
+  }
+
+  /* ============================================
+     DAY NOTES (the "day focus" field)
+     A separate object, keyed by date, holding one free-text
+     note per day — independent from the exercise/meal entries.
+     ============================================ */
+  const DAY_NOTES_KEY = "gym-diet-tracker-day-notes";
+  let dayNotes = {};
+
+  function loadDayNotes() {
+    const raw = localStorage.getItem(DAY_NOTES_KEY);
+    dayNotes = raw ? JSON.parse(raw) : {};
+  }
+
+  function saveDayNotes() {
+    localStorage.setItem(DAY_NOTES_KEY, JSON.stringify(dayNotes));
+  }
+
+  /* ============================================
+     MUSCLE GROUPS (day focus autocomplete)
+     Unlike the exercise autocomplete, this is a fixed list,
+     and it works on the *last comma-separated segment* of
+     the input — so you can keep adding "Chest, Shoulders, ..."
+     one group at a time in the same box.
+     ============================================ */
+  const MUSCLE_GROUPS = [
+    "Shoulders", "Chest", "Back", "Biceps", "Triceps", "Forearms",
+    "Abs", "Legs", "Calves",
+  ];
+
+  // Whatever's typed after the last comma is the "in progress" segment
+  function getCurrentSegment(value) {
+    const parts = value.split(",");
+    return parts[parts.length - 1].trim();
+  }
+
+  function getMuscleSuggestions(segment) {
+    if (!segment) return [];
+    const s = segment.toLowerCase();
+    return MUSCLE_GROUPS.filter((g) => g.toLowerCase().startsWith(s));
+  }
+
+  // Replaces the in-progress segment with the chosen group name,
+  // keeps everything typed before it, and leaves the box ready
+  // for the next group to be typed.
+  function insertMuscleGroup(value, groupName) {
+    const parts = value.split(",");
+    parts[parts.length - 1] = " " + groupName;
+    return parts.join(",").trim() + ", ";
+  }
+
+  /* ============================================
+     FUZZY MATCHING
+     Levenshtein distance: the minimum number of single-letter
+     edits (insert/delete/swap) to turn one string into another.
+     "brnch press" vs "bench press" = 1 (one missing letter).
+     Lower distance = closer match.
+     ============================================ */
+  function levenshtein(a, b) {
+    const m = a.length, n = b.length;
+    const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+    for (let i = 0; i <= m; i++) dp[i][0] = i;
+    for (let j = 0; j <= n; j++) dp[0][j] = j;
+    for (let i = 1; i <= m; i++) {
+      for (let j = 1; j <= n; j++) {
+        if (a[i - 1] === b[j - 1]) {
+          dp[i][j] = dp[i - 1][j - 1];
+        } else {
+          dp[i][j] = 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+        }
+      }
+    }
+    return dp[m][n];
+  }
+
+  function titleCase(str) {
+    return str
+      .split(" ")
+      .filter(Boolean)
+      .map((word) => word[0].toUpperCase() + word.slice(1).toLowerCase())
+      .join(" ");
+  }
+
+  // Suggestions to show in the dropdown while typing — any known
+  // exercise within a "close enough" edit distance, closest first.
+  function getSuggestions(query) {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    return knownExercises
+      .map((name) => ({ name, distance: levenshtein(q, name.toLowerCase()) }))
+      .filter((item) => item.distance <= Math.max(2, Math.round(item.name.length * 0.35)))
+      .sort((a, b) => a.distance - b.distance)
+      .slice(0, 5)
+      .map((item) => item.name);
+  }
+
+  // Called on submit: decide the final exercise name to save.
+  // - Exact or very close match to a known exercise -> use the
+  //   known (correctly spelled) version.
+  // - No close match -> treat as a genuinely new exercise, learn it.
+  function resolveExerciseName(typed) {
+    const trimmed = typed.trim();
+    let best = null;
+    knownExercises.forEach((name) => {
+      const distance = levenshtein(trimmed.toLowerCase(), name.toLowerCase());
+      if (!best || distance < best.distance) best = { name, distance };
+    });
+
+    if (best && best.distance <= 2) {
+      return best.name; // typo or exact match -> use the known spelling
+    }
+
+    const learned = titleCase(trimmed);
+    if (!knownExercises.some((n) => n.toLowerCase() === learned.toLowerCase())) {
+      knownExercises.push(learned);
+      saveKnownExercises();
+    }
+    return learned;
+  }
+
+  /* ============================================
+     RENDERING
+     Every time the data changes, we re-draw the parts
+     of the page that depend on it.
+     ============================================ */
+  function render() {
+    const isToday = selectedDate === TODAY;
+    document.getElementById("date-label").textContent = formatDateLabel(selectedDate);
+    document.getElementById("log-heading").textContent = isToday ? "Entries today" : "Entries";
+    document.getElementById("day-focus-input").value = dayNotes[selectedDate] || "";
+    document.getElementById("log-target-note").innerHTML = isToday
+      ? "Logging to <strong>today</strong>"
+      : `Logging to <strong>${formatDateLabel(selectedDate)}</strong> — not today`;
+
+    const dayEntries = entries
+      .filter((e) => e.dateKey === selectedDate)
+      .sort((a, b) => b.createdAt - a.createdAt);
+
+    const workoutCount = dayEntries.filter((e) => e.type === "workout").length;
+    const calorieTotal = dayEntries
+      .filter((e) => e.type === "food")
+      .reduce((sum, e) => sum + Number(e.calories), 0);
+
+    document.getElementById("workout-count").textContent = workoutCount;
+    document.getElementById("calorie-total").textContent = calorieTotal;
+    document.getElementById("logs-count").textContent =
+      dayEntries.length === 0 ? "" : `${dayEntries.length} logged`;
+
+    const list = document.getElementById("log-list");
+    list.innerHTML = "";
+
+    if (dayEntries.length === 0) {
+      const message = isToday ? "Nothing logged yet today. Add a workout or meal above." : "Nothing logged on this day.";
+      list.innerHTML = `<div class="empty-state">${message}</div>`;
+      return;
+    }
+
+    dayEntries.forEach((entry) => {
+      const item = document.createElement("div");
+      item.className = "log-item";
+      if (entry.id === editingId) {
+        renderEditForm(item, entry);
+      } else {
+        renderLogRow(item, entry);
+      }
+      list.appendChild(item);
+    });
+  }
+
+  // Normal, non-editing display of one log entry.
+  function renderLogRow(item, entry) {
+    const icon = entry.type === "workout" ? ICONS.dumbbell : ICONS.bowl;
+    const title = entry.type === "workout" ? entry.exercise : entry.foodName;
+    const sub = entry.type === "workout"
+      ? `${entry.sets ?? "?"} sets × ${entry.reps} reps @ ${entry.weight}kg`
+      : `${entry.calories} kcal`;
+
+    item.innerHTML = `
+      <div class="log-icon ${entry.type}">${icon}</div>
+      <div class="log-main">
+        <div class="log-title"></div>
+        <div class="log-sub"></div>
+      </div>
+      <div class="log-actions">
+        <button class="log-edit-btn" type="button" aria-label="Edit entry">${ICONS.edit}</button>
+        <button class="log-delete" type="button" aria-label="Delete entry">${ICONS.trash}</button>
+      </div>
+    `;
+    item.querySelector(".log-title").textContent = title;
+    item.querySelector(".log-sub").textContent = sub;
+    item.querySelector(".log-edit-btn").addEventListener("click", () => {
+      editingId = entry.id;
+      render();
+    });
+    item.querySelector(".log-delete").addEventListener("click", () => deleteEntry(entry.id));
+  }
+
+  // Inline edit form for one log entry. Built with createElement + .value
+  // (not innerHTML string templates) so exercise/food names containing
+  // quotes or special characters can't break the markup.
+  function renderEditForm(item, entry) {
+    item.classList.add("editing");
+    const form = document.createElement("div");
+    form.className = "log-edit-form";
+
+    function makeInput(type, value, placeholder) {
+      const input = document.createElement("input");
+      input.type = type;
+      input.value = value;
+      if (placeholder) input.placeholder = placeholder;
+      return input;
+    }
+
+    let fieldRefs;
+    if (entry.type === "workout") {
+      const exerciseInput = makeInput("text", entry.exercise);
+      const setsInput = makeInput("number", entry.sets ?? "", "Sets");
+      const weightInput = makeInput("number", entry.weight, "Weight");
+      const repsInput = makeInput("number", entry.reps, "Reps");
+
+      const row1 = document.createElement("div");
+      row1.className = "log-edit-row";
+      row1.appendChild(exerciseInput);
+
+      const row2 = document.createElement("div");
+      row2.className = "log-edit-row";
+      row2.append(setsInput, weightInput, repsInput);
+
+      form.append(row1, row2);
+      fieldRefs = { exerciseInput, setsInput, weightInput, repsInput };
+    } else {
+      const foodInput = makeInput("text", entry.foodName);
+      const caloriesInput = makeInput("number", entry.calories, "Calories");
+
+      const row1 = document.createElement("div");
+      row1.className = "log-edit-row";
+      row1.appendChild(foodInput);
+
+      const row2 = document.createElement("div");
+      row2.className = "log-edit-row";
+      row2.appendChild(caloriesInput);
+
+      form.append(row1, row2);
+      fieldRefs = { foodInput, caloriesInput };
+    }
+
+    const actions = document.createElement("div");
+    actions.className = "log-edit-actions";
+    const cancelBtn = document.createElement("button");
+    cancelBtn.type = "button"; cancelBtn.className = "edit-cancel"; cancelBtn.textContent = "Cancel";
+    const saveBtn = document.createElement("button");
+    saveBtn.type = "button"; saveBtn.className = "edit-save"; saveBtn.textContent = "Save";
+    actions.append(cancelBtn, saveBtn);
+    form.appendChild(actions);
+    item.appendChild(form);
+
+    cancelBtn.addEventListener("click", () => { editingId = null; render(); });
+
+    saveBtn.addEventListener("click", () => {
+      if (entry.type === "workout") {
+        const exercise = fieldRefs.exerciseInput.value.trim();
+        const sets = fieldRefs.setsInput.value;
+        const weight = fieldRefs.weightInput.value;
+        const reps = fieldRefs.repsInput.value;
+        if (!exercise || sets === "" || weight === "" || reps === "") return; // silently ignore incomplete edits
+        updateEntry(entry.id, {
+          exercise: resolveExerciseName(exercise),
+          sets: Number(sets),
+          weight: Number(weight),
+          reps: Number(reps),
+        });
+      } else {
+        const foodName = fieldRefs.foodInput.value.trim();
+        const calories = fieldRefs.caloriesInput.value;
+        if (!foodName || calories === "") return;
+        updateEntry(entry.id, { foodName, calories: Number(calories) });
+      }
+    });
+  }
+
+  /* ============================================
+     ACTIONS
+     Functions that change state, then save + re-render.
+     ============================================ */
+  function addEntry(newEntry) {
+    entries.push({
+      id: crypto.randomUUID(),
+      dateKey: selectedDate, // saves to whatever date is currently picked, not always today
+      createdAt: Date.now(),
+      ...newEntry,
+    });
+    saveEntries();
+    render();
+  }
+
+  function deleteEntry(id) {
+    entries = entries.filter((e) => e.id !== id);
+    saveEntries();
+    syncDateInput();
+    render();
+  }
+
+  // Applies a partial update (patch) to one entry by id — keeps its
+  // original id/dateKey/createdAt, only overwrites the fields you pass in.
+  function updateEntry(id, patch) {
+    entries = entries.map((e) => (e.id === id ? { ...e, ...patch } : e));
+    editingId = null;
+    saveEntries();
+    render();
+  }
+
+  /* ============================================
+     TAB SWITCHING
+     ============================================ */
+  const tabWorkout = document.getElementById("tab-workout");
+  const tabFood = document.getElementById("tab-food");
+  const panelWorkout = document.getElementById("panel-workout");
+  const panelFood = document.getElementById("panel-food");
+
+  tabWorkout.addEventListener("click", () => {
+    tabWorkout.classList.add("active");
+    tabFood.classList.remove("active");
+    panelWorkout.classList.add("active");
+    panelFood.classList.remove("active");
+  });
+
+  tabFood.addEventListener("click", () => {
+    tabFood.classList.add("active");
+    tabWorkout.classList.remove("active");
+    panelFood.classList.add("active");
+    panelWorkout.classList.remove("active");
+  });
+
+  /* ============================================
+     BUTTON HANDLERS
+     No <form> involved — each button has a direct
+     click handler that reads the inputs, validates,
+     and adds the entry.
+     ============================================ */
+  const exerciseInput = document.getElementById("w-exercise");
+  const suggestionsBox = document.getElementById("exercise-suggestions");
+
+  function renderSuggestions(matches) {
+    suggestionsBox.innerHTML = "";
+    if (matches.length === 0) {
+      suggestionsBox.classList.remove("open");
+      return;
+    }
+    matches.forEach((name) => {
+      const item = document.createElement("div");
+      item.className = "suggestion-item";
+      item.textContent = name;
+      item.addEventListener("click", () => {
+        exerciseInput.value = name;
+        suggestionsBox.classList.remove("open");
+      });
+      suggestionsBox.appendChild(item);
+    });
+    suggestionsBox.classList.add("open");
+  }
+
+  exerciseInput.addEventListener("input", () => {
+    renderSuggestions(getSuggestions(exerciseInput.value));
+  });
+
+  // Close the dropdown when clicking anywhere outside it
+  document.addEventListener("click", (ev) => {
+    if (!exerciseInput.contains(ev.target) && !suggestionsBox.contains(ev.target)) {
+      suggestionsBox.classList.remove("open");
+    }
+  });
+
+  document.getElementById("submit-workout").addEventListener("click", () => {
+    const errorEl = document.getElementById("w-error");
+    errorEl.textContent = "";
+
+    const weightInput = document.getElementById("w-weight");
+    const setsInput = document.getElementById("w-sets");
+    const repsInput = document.getElementById("w-reps");
+
+    const rawExercise = exerciseInput.value.trim();
+    const weight = weightInput.value;
+    const sets = setsInput.value;
+    const reps = repsInput.value;
+
+    if (!rawExercise) return (errorEl.textContent = "Enter an exercise name.");
+    if (weight === "" || Number(weight) < 0) return (errorEl.textContent = "Enter a valid weight.");
+    if (sets === "" || Number(sets) <= 0) return (errorEl.textContent = "Enter valid sets.");
+    if (reps === "" || Number(reps) <= 0) return (errorEl.textContent = "Enter valid reps.");
+
+    const exercise = resolveExerciseName(rawExercise);
+
+    addEntry({ type: "workout", exercise, weight: Number(weight), sets: Number(sets), reps: Number(reps) });
+    exerciseInput.value = "";
+    weightInput.value = "";
+    setsInput.value = "";
+    repsInput.value = "";
+    suggestionsBox.classList.remove("open");
+  });
+
+  document.getElementById("submit-food").addEventListener("click", () => {
+    const errorEl = document.getElementById("f-error");
+    errorEl.textContent = "";
+
+    const nameInput = document.getElementById("f-name");
+    const caloriesInput = document.getElementById("f-calories");
+
+    const foodName = nameInput.value.trim();
+    const calories = caloriesInput.value;
+
+    if (!foodName) return (errorEl.textContent = "Enter a food name.");
+    if (calories === "" || Number(calories) <= 0) return (errorEl.textContent = "Enter valid calories.");
+
+    addEntry({ type: "food", foodName, calories: Number(calories) });
+    nameInput.value = "";
+    caloriesInput.value = "";
+  });
+
+  /* ============================================
+     DATE DROPDOWN HANDLER
+     ============================================ */
+  document.getElementById("date-select").addEventListener("change", (ev) => {
+    selectedDate = ev.target.value;
+    render();
+  });
+
+  /* ============================================
+     DAY FOCUS HANDLER
+     Same dropdown pattern as the exercise autocomplete,
+     but suggestions come from the fixed MUSCLE_GROUPS list
+     and match against only the segment after the last comma.
+     ============================================ */
+  const dayFocusInput = document.getElementById("day-focus-input");
+  const focusSuggestionsBox = document.getElementById("focus-suggestions");
+
+  function renderFocusSuggestions(matches) {
+    focusSuggestionsBox.innerHTML = "";
+    if (matches.length === 0) {
+      focusSuggestionsBox.classList.remove("open");
+      return;
+    }
+    matches.forEach((name) => {
+      const item = document.createElement("div");
+      item.className = "suggestion-item";
+      item.textContent = name;
+      item.addEventListener("click", () => {
+        dayFocusInput.value = insertMuscleGroup(dayFocusInput.value, name);
+        dayNotes[selectedDate] = dayFocusInput.value;
+        saveDayNotes();
+        focusSuggestionsBox.classList.remove("open");
+        dayFocusInput.focus();
+      });
+      focusSuggestionsBox.appendChild(item);
+    });
+    focusSuggestionsBox.classList.add("open");
+  }
+
+  dayFocusInput.addEventListener("input", (ev) => {
+    dayNotes[selectedDate] = ev.target.value;
+    saveDayNotes();
+    renderFocusSuggestions(getMuscleSuggestions(getCurrentSegment(ev.target.value)));
+  });
+
+  // Tidy up trailing ", " once you click away, so a saved note
+  // reads "Chest, Shoulders" rather than "Chest, Shoulders, "
+  dayFocusInput.addEventListener("blur", () => {
+    setTimeout(() => {
+      const cleaned = dayFocusInput.value.trim().replace(/,\s*$/, "");
+      dayFocusInput.value = cleaned;
+      dayNotes[selectedDate] = cleaned;
+      saveDayNotes();
+    }, 150); // delay so a suggestion click still registers first
+  });
+
+  document.addEventListener("click", (ev) => {
+    if (!dayFocusInput.contains(ev.target) && !focusSuggestionsBox.contains(ev.target)) {
+      focusSuggestionsBox.classList.remove("open");
+    }
+  });
+
+  /* ============================================
+     VIEW SWITCHING (Log <-> History)
+     ============================================ */
+  const navLog = document.getElementById("nav-log");
+  const navHistory = document.getElementById("nav-history");
+  const viewLog = document.getElementById("view-log");
+  const viewHistory = document.getElementById("view-history");
+
+  function switchView(view) {
+    viewLog.classList.toggle("active", view === "log");
+    viewHistory.classList.toggle("active", view === "history");
+    navLog.classList.toggle("active", view === "log");
+    navHistory.classList.toggle("active", view === "history");
+    if (view === "history") renderHistory(); // build it fresh each time it's opened
+  }
+
+  navLog.addEventListener("click", () => switchView("log"));
+  navHistory.addEventListener("click", () => switchView("history"));
+
+  /* ============================================
+     CANVAS LINE CHART
+     A small hand-drawn chart: maps each data point to an
+     (x, y) pixel position inside the canvas, then connects
+     them with a line. No charting library — just coordinate math.
+     ============================================ */
+  // Rounds a value UP to a "nice" round number for a clean axis top —
+  // e.g. 73.4 -> 80, 8.2 -> 10, 340 -> 400. Prevents ugly axis labels
+  // like "73.4kg" and keeps the scale sensible no matter the exercise.
+  function niceCeiling(value) {
+    if (value <= 0) return 10;
+    const magnitude = Math.pow(10, Math.floor(Math.log10(value)));
+    const residual = value / magnitude;
+    let niceResidual;
+    if (residual <= 1) niceResidual = 1;
+    else if (residual <= 2) niceResidual = 2;
+    else if (residual <= 5) niceResidual = 5;
+    else niceResidual = 10;
+    return niceResidual * magnitude;
+  }
+
+  function drawLineChart(canvas, points, strokeColor) {
+    const ctx = canvas.getContext("2d");
+    const w = canvas.width, h = canvas.height;
+    const padding = 30;
+    ctx.clearRect(0, 0, w, h);
+
+    if (points.length === 0) {
+      ctx.fillStyle = "#5B615E";
+      ctx.font = "13px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("No data yet", w / 2, h / 2);
+      return;
+    }
+
+    const values = points.map((p) => p.value);
+    const minV = 0; // always start the y-axis at 0, not the lowest data point
+    const rawMax = Math.max(...values);
+    const maxV = niceCeiling(rawMax * 1.15); // headroom above the tallest point, rounded clean
+    const range = maxV - minV || 1;
+    const stepX = points.length > 1 ? (w - padding * 2) / (points.length - 1) : 0;
+
+    const xAt = (i) => padding + i * stepX;
+    const yAt = (v) => h - padding - ((v - minV) / range) * (h - padding * 2);
+
+    // light horizontal gridlines at 25/50/75% for a reference grid
+    ctx.strokeStyle = "#EDECE7";
+    ctx.lineWidth = 1;
+    [0.25, 0.5, 0.75].forEach((frac) => {
+      const y = padding + (h - padding * 2) * frac;
+      ctx.beginPath();
+      ctx.moveTo(padding, y);
+      ctx.lineTo(w - padding, y);
+      ctx.stroke();
+    });
+
+    // baseline axis
+    ctx.strokeStyle = "#D8D6D0";
+    ctx.beginPath();
+    ctx.moveTo(padding, h - padding);
+    ctx.lineTo(w - padding, h - padding);
+    ctx.stroke();
+
+    // Build one smoothed path we'll reuse for both the fill and the stroke.
+    // Instead of straight lineTo() segments (sharp corners), we curve
+    // through the midpoint between each pair of points — a simple
+    // smoothing trick that avoids needing a full spline implementation.
+    function buildSmoothPath() {
+      ctx.beginPath();
+      ctx.moveTo(xAt(0), yAt(points[0].value));
+      for (let i = 1; i < points.length; i++) {
+        const xPrev = xAt(i - 1), yPrev = yAt(points[i - 1].value);
+        const xCur = xAt(i), yCur = yAt(points[i].value);
+        const xMid = (xPrev + xCur) / 2, yMid = (yPrev + yCur) / 2;
+        ctx.quadraticCurveTo(xPrev, yPrev, xMid, yMid);
+      }
+      const last = points[points.length - 1];
+      ctx.lineTo(xAt(points.length - 1), yAt(last.value));
+    }
+
+    // soft gradient fill under the line, fading to transparent
+    buildSmoothPath();
+    ctx.lineTo(xAt(points.length - 1), h - padding);
+    ctx.lineTo(xAt(0), h - padding);
+    ctx.closePath();
+    const gradient = ctx.createLinearGradient(0, padding, 0, h - padding);
+    gradient.addColorStop(0, strokeColor + "33"); // ~20% opacity (hex alpha)
+    gradient.addColorStop(1, strokeColor + "00"); // fully transparent
+    ctx.fillStyle = gradient;
+    ctx.fill();
+
+    // the smoothed line itself, on top of the fill
+    buildSmoothPath();
+    ctx.strokeStyle = strokeColor;
+    ctx.lineWidth = 2.5;
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    ctx.stroke();
+
+    // a dot at each point: white center with a colored ring, so points
+    // stay visible even where the line and fill are similar in tone
+    points.forEach((p, i) => {
+      const x = xAt(i), y = yAt(p.value);
+      ctx.beginPath();
+      ctx.arc(x, y, 4, 0, Math.PI * 2);
+      ctx.fillStyle = strokeColor;
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(x, y, 2, 0, Math.PI * 2);
+      ctx.fillStyle = "#FFFFFF";
+      ctx.fill();
+    });
+
+    // min/max value labels on the y-axis
+    ctx.fillStyle = "#5B615E";
+    ctx.font = "11px monospace";
+    ctx.textAlign = "left";
+    ctx.fillText(String(maxV), 4, padding - 4);
+    ctx.fillText(String(minV), 4, h - padding + 14);
+
+    // date labels for the first and last point only, to avoid clutter
+    ctx.font = "10px monospace";
+    ctx.fillStyle = "#8A8F8B";
+    ctx.textAlign = "left";
+    ctx.fillText(points[0].label.slice(5), xAt(0), h - 6); // "MM-DD"
+    if (points.length > 1) {
+      ctx.textAlign = "right";
+      ctx.fillText(points[points.length - 1].label.slice(5), xAt(points.length - 1), h - 6);
+    }
+  }
+
+  /* ============================================
+     HISTORY DATA
+     ============================================ */
+  // One point per logged set of a chosen exercise, oldest first.
+  // (Note: this means drop sets / multiple sets on the same day
+  // already show as separate points — a reasonable stopgap until
+  // sets are modeled as their own thing.)
+  function getExerciseChartData(exerciseName) {
+    return entries
+      .filter((e) => e.type === "workout" && e.exercise === exerciseName)
+      .sort((a, b) => a.createdAt - b.createdAt)
+      .map((e) => ({ label: e.dateKey, value: e.weight }));
+  }
+
+  // Total calories per day, oldest first.
+  function getCalorieChartData() {
+    const totals = {};
+    entries
+      .filter((e) => e.type === "food")
+      .forEach((e) => { totals[e.dateKey] = (totals[e.dateKey] || 0) + Number(e.calories); });
+    return Object.keys(totals).sort().map((dateKey) => ({ label: dateKey, value: totals[dateKey] }));
+  }
+
+  function populateChartExerciseSelect() {
+    const select = document.getElementById("chart-exercise-select");
+    const names = [...new Set(entries.filter((e) => e.type === "workout").map((e) => e.exercise))].sort();
+    const previousValue = select.value;
+    select.innerHTML = "";
+
+    if (names.length === 0) {
+      const opt = document.createElement("option");
+      opt.textContent = "No workouts logged yet";
+      select.appendChild(opt);
+      return;
+    }
+    names.forEach((name) => {
+      const opt = document.createElement("option");
+      opt.value = name;
+      opt.textContent = name;
+      select.appendChild(opt);
+    });
+    // keep whatever exercise was selected before, if it's still in the list
+    select.value = names.includes(previousValue) ? previousValue : names[0];
+  }
+
+  function renderCharts() {
+    const select = document.getElementById("chart-exercise-select");
+    const weightData = select.value ? getExerciseChartData(select.value) : [];
+    drawLineChart(document.getElementById("weight-chart"), weightData, "#2F5FA8");
+    drawLineChart(document.getElementById("calorie-chart"), getCalorieChartData(), "#C9762E");
+  }
+
+  document.getElementById("chart-exercise-select").addEventListener("change", renderCharts);
+
+  // Condensed day-by-day list: date, day focus tag (if any), and a
+  // one-line summary. Clicking a row jumps back to the Log view on
+  // that date, so History doubles as a way to navigate, not just view.
+  function renderDayList() {
+    const container = document.getElementById("day-list");
+    container.innerHTML = "";
+
+    const dateKeys = new Set([...entries.map((e) => e.dateKey), ...Object.keys(dayNotes)]);
+    const sortedDates = [...dateKeys].sort((a, b) => (a < b ? 1 : -1)); // newest first
+
+    if (sortedDates.length === 0) {
+      container.innerHTML = '<div class="empty-state">Nothing logged yet.</div>';
+      return;
+    }
+
+    sortedDates.forEach((dateKey) => {
+      const dayEntries = entries.filter((e) => e.dateKey === dateKey);
+      const workoutCount = dayEntries.filter((e) => e.type === "workout").length;
+      const calorieTotal = dayEntries
+        .filter((e) => e.type === "food")
+        .reduce((sum, e) => sum + Number(e.calories), 0);
+      const focus = dayNotes[dateKey];
+
+      const row = document.createElement("div");
+      row.className = "day-row";
+      row.innerHTML = `
+        <div class="day-row-date"></div>
+        <div class="day-row-main">
+          <div class="day-row-focus"></div>
+          <div class="day-row-summary"></div>
+        </div>
+      `;
+      row.querySelector(".day-row-date").textContent = formatDateLabel(dateKey);
+
+      const focusEl = row.querySelector(".day-row-focus");
+      if (focus) { focusEl.textContent = focus; } else { focusEl.remove(); }
+
+      const summary = (workoutCount === 0 && calorieTotal === 0)
+        ? "Nothing logged"
+        : `${workoutCount} workout${workoutCount === 1 ? "" : "s"} · ${calorieTotal} kcal`;
+      row.querySelector(".day-row-summary").textContent = summary;
+
+      row.addEventListener("click", () => {
+        selectedDate = dateKey;
+        syncDateInput();
+        switchView("log");
+        render();
+      });
+
+      container.appendChild(row);
+    });
+  }
+
+  function renderHistory() {
+    populateChartExerciseSelect();
+    renderDayList();
+    renderCharts();
+  }
+
+  /* ============================================
+     BOOT
+     ============================================ */
+  loadEntries();
+  loadKnownExercises();
+  loadDayNotes();
+  mountStaticIcons();
+  syncDateInput();
+  render();
+</script>
+</body>
+</html>
