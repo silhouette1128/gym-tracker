@@ -70,6 +70,44 @@
   }
 
   /* ---------- Sidebar nav ---------- */
+  /* ---------- App shell (hidden until signed in) ---------- */
+  #app-shell { display: none; }
+  #app-shell.visible { display: contents; }
+
+  /* ---------- Auth screen ---------- */
+  .auth-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .auth-screen.hidden { display: none; }
+  .auth-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 36px 32px;
+    max-width: 380px;
+    width: 100%;
+    box-shadow: var(--shadow-md);
+    text-align: center;
+  }
+  .auth-logo-badge { margin: 0 auto 16px; }
+  .auth-title { font-family: var(--font-heading); font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+  .auth-subtitle { font-size: 12.5px; color: var(--ink-soft); margin-bottom: 24px; }
+  .auth-field { text-align: left; margin-bottom: 14px; }
+  .auth-switch { font-size: 12.5px; color: var(--ink-soft); margin-top: 16px; }
+  .auth-switch button {
+    background: none; border: none;
+    color: var(--accent);
+    font-weight: 700;
+    font-size: 12.5px;
+    cursor: pointer;
+    padding: 0 0 0 4px;
+    text-decoration: underline;
+  }
+
   .sidebar {
     position: fixed;
     top: 0; left: 0; bottom: 0;
@@ -660,6 +698,33 @@
 </head>
 <body>
 
+  <div id="view-auth" class="auth-screen">
+    <div class="auth-card">
+      <div class="logo-badge auth-logo-badge">
+        <span>D</span><span>L</span><span>W</span><span>M</span>
+      </div>
+      <div class="auth-title" id="auth-title">Welcome back</div>
+      <div class="auth-subtitle" id="auth-subtitle">Sign in to your log</div>
+
+      <div class="field auth-field">
+        <label for="auth-email">Email</label>
+        <input type="email" id="auth-email" placeholder="you@example.com" autocomplete="username" />
+      </div>
+      <div class="field auth-field">
+        <label for="auth-password">Password</label>
+        <input type="password" id="auth-password" placeholder="At least 6 characters" autocomplete="current-password" />
+      </div>
+      <button class="submit-btn" id="auth-submit" type="button">Sign in</button>
+      <div class="error-msg" id="auth-error"></div>
+
+      <div class="auth-switch">
+        <span id="auth-switch-text">Don't have an account?</span>
+        <button id="auth-switch-btn" type="button">Sign up</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="app-shell">
   <div class="sidebar">
     <div class="logo-wrap">
       <div class="logo-badge">
@@ -672,6 +737,9 @@
     </button>
     <button class="nav-btn" id="nav-history" type="button" title="History">
       <span class="nav-icon" data-icon="history"></span><span class="nav-label">History</span>
+    </button>
+    <button class="nav-btn" id="nav-logout" type="button" title="Log out" style="margin-top: auto;">
+      <span class="nav-icon" data-icon="logout"></span><span class="nav-label">Log out</span>
     </button>
   </div>
 
@@ -858,8 +926,22 @@
     </div>
   </div>
   </div>
+  </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
+  /* ============================================
+     SUPABASE CLIENT
+     This connects the app to your specific database + auth system.
+     The key below is the "publishable" key — safe to be public,
+     since Row Level Security (set up in the database itself)
+     is what actually decides who can see or change what.
+     ============================================ */
+  const SUPABASE_URL = "https://lvwekubnuquafzhzlfnc.supabase.co";
+  const SUPABASE_KEY = "sb_publishable_Jej1qafd9xpBN27f9RFOkQ_ULXp6gcy";
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  let currentUser = null; // set once signed in; null while on the auth screen
+
   /* ============================================
      ICONS
      A small set of hand-drawn line icons, all sharing the
@@ -878,6 +960,7 @@
     trash: `<svg ${ICON_ATTRS}><path d="M4 7h16"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/></svg>`,
     flame: `<svg ${ICON_ATTRS}><path d="M12 2c1.2 3-2.8 4.2-2.8 8.2a2.8 2.8 0 0 0 5.6 0c0-1-.9-1.9-.9-1.9s1.9 1 1.9 3.9a4.8 4.8 0 0 1-9.6 0C6.2 7.4 10 6.2 12 2Z"/></svg>`,
     cardio: `<svg ${ICON_ATTRS}><path d="M3 12h4l2-7 4 14 2-7h6"/></svg>`,
+    logout: `<svg ${ICON_ATTRS}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>`,
   };
 
   // Fills every element tagged data-icon="name" with its matching SVG.
@@ -896,7 +979,6 @@
      We keep it in memory, and mirror it to localStorage
      every time it changes.
      ============================================ */
-  const STORAGE_KEY = "gym-diet-tracker-entries";
   let entries = [];
   let editingId = null; // id of the entry currently shown in edit mode, or null
 
@@ -926,28 +1008,68 @@
 
   /* ============================================
      PERSISTENCE
-     localStorage is a standard browser feature — a small
-     key/value store built into every browser. It only
-     stores strings, so we convert our array to/from JSON text.
-     Unlike window.storage, these calls are synchronous —
-     no await needed.
+     Entries now live in a real Supabase (Postgres) database instead
+     of localStorage — reachable from any device, any browser, once
+     signed in. Database columns are snake_case (date_key, to_failure);
+     our app's JS objects stay camelCase (dateKey, toFailure) like
+     before, so these two converter functions translate between them.
      ============================================ */
-  function loadEntries() {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    entries = raw ? JSON.parse(raw) : [];
+  function rowToEntry(row) {
+    return {
+      id: row.id,
+      type: row.type,
+      dateKey: row.date_key,
+      createdAt: new Date(row.created_at).getTime(),
+      exercise: row.exercise,
+      sets: row.sets,
+      weight: row.weight,
+      reps: row.reps,
+      toFailure: row.to_failure,
+      foodName: row.food_name,
+      calories: row.calories,
+      activity: row.activity,
+      distance: row.distance,
+      duration: row.duration,
+    };
   }
 
-  function saveEntries() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+  function entryToRow(entry) {
+    return {
+      id: entry.id,
+      user_id: currentUser.id,
+      type: entry.type,
+      date_key: entry.dateKey,
+      created_at: new Date(entry.createdAt).toISOString(),
+      exercise: entry.exercise ?? null,
+      sets: entry.sets ?? null,
+      weight: entry.weight ?? null,
+      reps: entry.reps ?? null,
+      to_failure: entry.toFailure ?? false,
+      food_name: entry.foodName ?? null,
+      calories: entry.calories ?? null,
+      activity: entry.activity ?? null,
+      distance: entry.distance ?? null,
+      duration: entry.duration ?? null,
+    };
+  }
+
+  async function loadEntries() {
+    const { data, error } = await sb.from("entries").select("*").order("created_at", { ascending: true });
+    if (error) {
+      console.error("Failed to load entries:", error);
+      entries = [];
+      return;
+    }
+    entries = data.map(rowToEntry);
   }
 
   /* ============================================
      KNOWN EXERCISES (for autocomplete)
      A starter list ships built-in. Any new exercise you
      type that isn't a close match to something existing
-     gets added here automatically — the list grows with you.
+     gets saved to the database automatically — the list
+     grows with you, and now follows you across devices.
      ============================================ */
-  const EXERCISES_KEY = "gym-diet-tracker-known-exercises";
   const SEED_EXERCISES = [
     // Chest
     "Bench Presses", "Incline Bench Presses", "Decline Bench Presses",
@@ -982,50 +1104,93 @@
   ];
   let knownExercises = [];
 
-  function loadKnownExercises() {
-    const raw = localStorage.getItem(EXERCISES_KEY);
-    knownExercises = raw ? JSON.parse(raw) : [...SEED_EXERCISES];
-  }
-
-  function saveKnownExercises() {
-    localStorage.setItem(EXERCISES_KEY, JSON.stringify(knownExercises));
+  async function loadKnownExercises() {
+    const { data, error } = await sb.from("known_names").select("name").eq("category", "exercise");
+    if (error) {
+      console.error("Failed to load known exercises:", error);
+      knownExercises = [...SEED_EXERCISES];
+      return;
+    }
+    if (data.length === 0) {
+      // First time this user has ever loaded the app — seed the
+      // database with the starter list so it's there next time too.
+      knownExercises = [...SEED_EXERCISES];
+      seedKnownNames("exercise", SEED_EXERCISES);
+    } else {
+      knownExercises = data.map((r) => r.name);
+    }
   }
 
   /* ============================================
      KNOWN CARDIO ACTIVITIES (for the cardio autocomplete)
-     Same pattern as known exercises: starter list + learns new ones.
+     Same pattern as known exercises, sharing the same database table.
      ============================================ */
-  const CARDIO_KEY = "gym-diet-tracker-known-cardio";
   const SEED_CARDIO = [
     "Running", "Cycling", "Rowing", "Jump Rope", "Elliptical",
     "Stair Climber", "Swimming", "Walking", "HIIT",
   ];
   let knownCardio = [];
 
-  function loadKnownCardio() {
-    const raw = localStorage.getItem(CARDIO_KEY);
-    knownCardio = raw ? JSON.parse(raw) : [...SEED_CARDIO];
+  async function loadKnownCardio() {
+    const { data, error } = await sb.from("known_names").select("name").eq("category", "cardio");
+    if (error) {
+      console.error("Failed to load known cardio activities:", error);
+      knownCardio = [...SEED_CARDIO];
+      return;
+    }
+    if (data.length === 0) {
+      knownCardio = [...SEED_CARDIO];
+      seedKnownNames("cardio", SEED_CARDIO);
+    } else {
+      knownCardio = data.map((r) => r.name);
+    }
   }
 
-  function saveKnownCardio() {
-    localStorage.setItem(CARDIO_KEY, JSON.stringify(knownCardio));
+  // One-time bulk insert of a starter list into known_names.
+  function seedKnownNames(category, list) {
+    const rows = list.map((name) => ({ user_id: currentUser.id, category, name }));
+    sb.from("known_names").insert(rows).then(({ error }) => {
+      if (error) console.error("Seeding known names failed:", error);
+    });
+  }
+
+  // Learns one new name into the database. A duplicate-key error
+  // (code 23505) just means it was already saved — harmless, so we
+  // only log genuinely unexpected errors.
+  function saveKnownName(category, name) {
+    sb.from("known_names").insert({ user_id: currentUser.id, category, name }).then(({ error }) => {
+      if (error && error.code !== "23505") console.error("Saving known name failed:", error);
+    });
   }
 
   /* ============================================
      DAY NOTES (the "day focus" field)
-     A separate object, keyed by date, holding one free-text
-     note per day — independent from the exercise/meal entries.
+     One row per date per user, held in the database now instead
+     of a single localStorage blob.
      ============================================ */
-  const DAY_NOTES_KEY = "gym-diet-tracker-day-notes";
   let dayNotes = {};
 
-  function loadDayNotes() {
-    const raw = localStorage.getItem(DAY_NOTES_KEY);
-    dayNotes = raw ? JSON.parse(raw) : {};
+  async function loadDayNotes() {
+    const { data, error } = await sb.from("day_notes").select("*");
+    dayNotes = {};
+    if (error) {
+      console.error("Failed to load day notes:", error);
+      return;
+    }
+    data.forEach((row) => { dayNotes[row.date_key] = row.note; });
   }
 
-  function saveDayNotes() {
-    localStorage.setItem(DAY_NOTES_KEY, JSON.stringify(dayNotes));
+  // Saves one day's focus note. "Upsert" means insert-or-update in
+  // one call — exactly what we want, since a date either has no note
+  // row yet (insert) or already does (update), and we don't want to
+  // check which case it is every time.
+  function saveDayNote(dateKey, note) {
+    dayNotes[dateKey] = note;
+    sb.from("day_notes")
+      .upsert({ user_id: currentUser.id, date_key: dateKey, note }, { onConflict: "user_id,date_key" })
+      .then(({ error }) => {
+        if (error) console.error("Saving day focus failed:", error);
+      });
   }
 
   /* ============================================
@@ -1109,10 +1274,10 @@
   }
 
   // Called on submit: decide the final name to save against a given
-  // known-names list, learning new entries into it via saveListFn.
+  // known-names list, learning new entries into `category` in the database.
   // - Exact or very close match -> use the known (correctly spelled) version.
   // - No close match -> treat as genuinely new, learn it into the list.
-  function resolveNameAgainst(typed, list, saveListFn) {
+  function resolveNameAgainst(typed, list, category) {
     const trimmed = typed.trim();
     let best = null;
     list.forEach((name) => {
@@ -1127,15 +1292,15 @@
     const learned = titleCase(trimmed);
     if (!list.some((n) => n.toLowerCase() === learned.toLowerCase())) {
       list.push(learned);
-      saveListFn();
+      saveKnownName(category, learned);
     }
     return learned;
   }
 
   function getSuggestions(query) { return getSuggestionsFrom(query, knownExercises); }
-  function resolveExerciseName(typed) { return resolveNameAgainst(typed, knownExercises, saveKnownExercises); }
+  function resolveExerciseName(typed) { return resolveNameAgainst(typed, knownExercises, "exercise"); }
   function getCardioSuggestions(query) { return getSuggestionsFrom(query, knownCardio); }
-  function resolveCardioName(typed) { return resolveNameAgainst(typed, knownCardio, saveKnownCardio); }
+  function resolveCardioName(typed) { return resolveNameAgainst(typed, knownCardio, "cardio"); }
 
   /* ============================================
      RENDERING
@@ -1415,22 +1580,33 @@
      Functions that change state, then save + re-render.
      ============================================ */
   function addEntry(newEntry) {
-    entries.push({
+    const entry = {
       id: crypto.randomUUID(),
       dateKey: selectedDate, // saves to whatever date is currently picked, not always today
       createdAt: Date.now(),
       ...newEntry,
-    });
-    saveEntries();
+    };
+    // Optimistic update: show it instantly, then sync to the database
+    // in the background. This keeps the app feeling instant even
+    // though the real save is now a network request, not a local write.
+    entries.push(entry);
     render();
     showToast(TOAST_MESSAGES[newEntry.type] || "Logged");
+    sb.from("entries").insert(entryToRow(entry)).then(({ error }) => {
+      if (error) {
+        console.error("Insert failed:", error);
+        showToast("Sync failed — check connection");
+      }
+    });
   }
 
   function deleteEntry(id) {
     entries = entries.filter((e) => e.id !== id);
-    saveEntries();
     syncDateInput();
     render();
+    sb.from("entries").delete().eq("id", id).then(({ error }) => {
+      if (error) { console.error("Delete failed:", error); showToast("Sync failed — check connection"); }
+    });
   }
 
   // Applies a partial update (patch) to one entry by id — keeps its
@@ -1438,9 +1614,24 @@
   function updateEntry(id, patch) {
     entries = entries.map((e) => (e.id === id ? { ...e, ...patch } : e));
     editingId = null;
-    saveEntries();
     render();
     showToast("Entry updated");
+
+    // Translate only the changed camelCase fields into their
+    // snake_case database column names for a targeted update.
+    const columnNames = {
+      exercise: "exercise", sets: "sets", weight: "weight", reps: "reps",
+      toFailure: "to_failure", foodName: "food_name", calories: "calories",
+      activity: "activity", distance: "distance", duration: "duration",
+    };
+    const row = {};
+    Object.keys(patch).forEach((key) => {
+      if (columnNames[key]) row[columnNames[key]] = patch[key];
+    });
+
+    sb.from("entries").update(row).eq("id", id).then(({ error }) => {
+      if (error) { console.error("Update failed:", error); showToast("Sync failed — check connection"); }
+    });
   }
 
   /* ============================================
@@ -1690,8 +1881,7 @@
       item.textContent = name;
       item.addEventListener("click", () => {
         dayFocusInput.value = insertMuscleGroup(dayFocusInput.value, name);
-        dayNotes[selectedDate] = dayFocusInput.value;
-        saveDayNotes();
+        saveDayNote(selectedDate, dayFocusInput.value);
         focusSuggestionsBox.classList.remove("open");
         updateCardioVisibility();
         dayFocusInput.focus();
@@ -1702,8 +1892,7 @@
   }
 
   dayFocusInput.addEventListener("input", (ev) => {
-    dayNotes[selectedDate] = ev.target.value;
-    saveDayNotes();
+    saveDayNote(selectedDate, ev.target.value);
     renderFocusSuggestions(getMuscleSuggestions(getCurrentSegment(ev.target.value)));
     updateCardioVisibility();
   });
@@ -1719,8 +1908,7 @@
       if (document.activeElement === dayFocusInput) return; // refocused — still composing, don't trim yet
       const cleaned = dayFocusInput.value.trim().replace(/,\s*$/, "");
       dayFocusInput.value = cleaned;
-      dayNotes[selectedDate] = cleaned;
-      saveDayNotes();
+      saveDayNote(selectedDate, cleaned);
     }, 150);
   });
 
@@ -2114,15 +2302,103 @@
   }
 
   /* ============================================
+     AUTH
+     Gates the whole app behind sign-in. On load, we check whether
+     a session already exists (so refreshing the page doesn't log
+     you out); if not, the auth screen shows until sign-in/sign-up
+     succeeds.
+     ============================================ */
+  let authMode = "signin";
+
+  function showAuthScreen() {
+    document.getElementById("view-auth").classList.remove("hidden");
+    document.getElementById("app-shell").classList.remove("visible");
+  }
+
+  function showApp() {
+    document.getElementById("view-auth").classList.add("hidden");
+    document.getElementById("app-shell").classList.add("visible");
+  }
+
+  function updateAuthUI() {
+    const isSignIn = authMode === "signin";
+    document.getElementById("auth-title").textContent = isSignIn ? "Welcome back" : "Create your log";
+    document.getElementById("auth-subtitle").textContent = isSignIn ? "Sign in to your log" : "Sign up to get started";
+    document.getElementById("auth-submit").textContent = isSignIn ? "Sign in" : "Sign up";
+    document.getElementById("auth-switch-text").textContent = isSignIn ? "Don't have an account?" : "Already have an account?";
+    document.getElementById("auth-switch-btn").textContent = isSignIn ? "Sign up" : "Sign in";
+    document.getElementById("auth-error").textContent = "";
+  }
+
+  document.getElementById("auth-switch-btn").addEventListener("click", () => {
+    authMode = authMode === "signin" ? "signup" : "signin";
+    updateAuthUI();
+  });
+
+  // Runs once, right after a successful sign-in or sign-up: loads
+  // everything from the database, then reveals the actual app.
+  async function handleSignedIn(user) {
+    currentUser = user;
+    await Promise.all([loadEntries(), loadKnownExercises(), loadKnownCardio(), loadDayNotes()]);
+    syncDateInput();
+    showApp();
+    render();
+  }
+
+  document.getElementById("auth-submit").addEventListener("click", async () => {
+    const errorEl = document.getElementById("auth-error");
+    errorEl.textContent = "";
+    const email = document.getElementById("auth-email").value.trim();
+    const password = document.getElementById("auth-password").value;
+    if (!email || !password) { errorEl.textContent = "Enter both email and password."; return; }
+
+    const submitBtn = document.getElementById("auth-submit");
+    submitBtn.disabled = true;
+    const originalLabel = submitBtn.textContent;
+    submitBtn.textContent = "Please wait…";
+
+    const { data, error } = authMode === "signin"
+      ? await sb.auth.signInWithPassword({ email, password })
+      : await sb.auth.signUp({ email, password });
+
+    submitBtn.disabled = false;
+    submitBtn.textContent = originalLabel;
+
+    if (error) { errorEl.textContent = error.message; return; }
+    if (!data.session) {
+      // Would happen if email confirmation were required — it isn't,
+      // per our Supabase settings, but this stays as an honest fallback.
+      errorEl.textContent = "Check your email to confirm your account.";
+      return;
+    }
+    await handleSignedIn(data.user);
+  });
+
+  document.getElementById("nav-logout").addEventListener("click", async () => {
+    await sb.auth.signOut();
+    currentUser = null;
+    entries = []; dayNotes = {}; knownExercises = []; knownCardio = [];
+    document.getElementById("auth-email").value = "";
+    document.getElementById("auth-password").value = "";
+    authMode = "signin";
+    updateAuthUI();
+    showAuthScreen();
+  });
+
+  /* ============================================
      BOOT
      ============================================ */
-  loadEntries();
-  loadKnownExercises();
-  loadKnownCardio();
-  loadDayNotes();
   mountStaticIcons();
-  syncDateInput();
-  render();
+
+  async function boot() {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) {
+      await handleSignedIn(session.user);
+    } else {
+      showAuthScreen();
+    }
+  }
+  boot();
 </script>
 </body>
 </html>
