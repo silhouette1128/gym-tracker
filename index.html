@@ -25,6 +25,8 @@
     --food-soft: #EFE1C8;
     --danger: #9C4A3C;
     --danger-soft: #F1DCD3;
+    --cardio: #7A3B42;      /* dusty wine = cardio, distinct from food/workout/danger */
+    --cardio-soft: #EDDCDA;
     --radius: 10px;
     --shadow-sm: 0 1px 3px rgba(43,38,32,0.08);
     --shadow-md: 0 8px 24px rgba(43,38,32,0.14);
@@ -193,6 +195,61 @@
   .day-row-summary { font-family: var(--font-mono); font-size: 12.5px; color: var(--ink-soft); }
 
   /* ---------- Charts ---------- */
+  /* ---------- Consistency panel (heatmap + streaks) ---------- */
+  .consistency-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow-sm);
+  }
+  .heatmap-wrap {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .heatmap-daylabels {
+    display: grid;
+    grid-template-rows: repeat(7, 15px);
+    gap: 4px;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--ink-soft);
+    flex-shrink: 0;
+    align-items: center;
+  }
+  .heatmap-grid {
+    display: grid;
+    grid-template-rows: repeat(7, 15px);
+    grid-auto-flow: column;
+    gap: 4px;
+  }
+  .heatmap-cell {
+    width: 15px; height: 15px;
+    border-radius: 4px;
+    background: var(--border);
+    transition: transform 0.1s ease;
+  }
+  .heatmap-cell.logged { background: var(--workout); }
+  .heatmap-cell.future { background: transparent; }
+  .heatmap-cell:hover { transform: scale(1.25); }
+  .consistency-rating {
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    margin: 12px 0 16px;
+  }
+  .consistency-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  @media (max-width: 520px) {
+    .consistency-stats { grid-template-columns: 1fr; }
+  }
+
   .charts-row { display: flex; gap: 14px; flex-wrap: wrap; }
   .chart-card {
     flex: 1;
@@ -291,6 +348,26 @@
     margin-bottom: 24px;
     box-shadow: var(--shadow-sm);
   }
+  .cardio-panel {
+    display: none;
+    border-color: var(--cardio);
+  }
+  .cardio-panel.visible {
+    display: block;
+    animation: viewIn 0.25s ease;
+  }
+  .panel-subtitle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--cardio);
+    margin-bottom: 14px;
+  }
+  .panel-subtitle svg { width: 15px; height: 15px; flex-shrink: 0; }
+  .cardio-panel .submit-btn { background: var(--cardio); }
+  .cardio-panel .submit-btn:hover { background: #632F35; }
   .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
   .log-target-note {
     font-size: 12px;
@@ -345,6 +422,23 @@
   }
   .field input:hover { border-color: #C9C7C0; }
   .field input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  .checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    cursor: pointer;
+    user-select: none;
+  }
+  .checkbox-row input[type="checkbox"] {
+    width: 16px; height: 16px;
+    accent-color: var(--accent);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
 
   .submit-btn {
     width: 100%;
@@ -462,11 +556,12 @@
     border-radius: 12px;
     padding: 14px 16px;
     margin-bottom: 8px;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.18s ease;
     animation: itemIn 0.2s ease;
   }
   .log-item:last-child { margin-bottom: 0; }
   .log-item:hover { transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+  .log-item.removing { opacity: 0; transform: translateX(14px) scale(0.98); }
   @keyframes itemIn {
     from { opacity: 0; transform: translateY(4px); }
     to { opacity: 1; transform: translateY(0); }
@@ -480,6 +575,7 @@
   .log-icon svg { width: 19px; height: 19px; }
   .log-icon.workout { background: var(--workout-soft); color: var(--workout); }
   .log-icon.food { background: var(--food-soft); color: var(--food); }
+  .log-icon.cardio { background: var(--cardio-soft); color: var(--cardio); }
   .log-main { flex: 1; min-width: 0; }
   .log-title { font-family: var(--font-heading); font-size: 16px; font-weight: 700; }
   .log-sub { font-family: var(--font-mono); font-size: 12.5px; color: var(--ink-soft); margin-top: 3px; }
@@ -533,6 +629,33 @@
     text-align: center; color: var(--ink-soft); font-size: 11px;
     margin-top: 24px;
   }
+
+  /* ---------- Toast ---------- */
+  .toast {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%) translateY(16px);
+    background: var(--ink);
+    color: var(--surface);
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 200;
+    box-shadow: var(--shadow-md);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+    animation: toastOut 0.2s ease 1.6s forwards;
+  }
+  @keyframes toastOut {
+    to { opacity: 0; transform: translateX(-50%) translateY(16px); }
+  }
 </style>
 </head>
 <body>
@@ -576,7 +699,7 @@
     </div>
 
     <div class="day-focus autocomplete-wrap">
-      <label for="day-focus-input">Day focus (optional)</label>
+      <label for="day-focus-input">Day focus</label>
       <input type="text" id="day-focus-input" placeholder="e.g. Chest, Shoulders, Triceps" autocomplete="off" />
       <div class="suggestions" id="focus-suggestions"></div>
     </div>
@@ -617,6 +740,10 @@
             <input type="number" id="w-reps" placeholder="8" />
           </div>
         </div>
+        <label class="checkbox-row" for="w-to-failure">
+          <input type="checkbox" id="w-to-failure" />
+          <span>To failure — reps optional if you're not sure</span>
+        </label>
         <button class="submit-btn" id="submit-workout" type="button">Log workout</button>
         <div class="error-msg" id="w-error"></div>
       </div>
@@ -635,6 +762,31 @@
         <button class="submit-btn" id="submit-food" type="button">Log meal</button>
         <div class="error-msg" id="f-error"></div>
       </div>
+    </div>
+
+    <div class="panel cardio-panel" id="cardio-panel">
+      <div class="panel-subtitle">
+        <span data-icon="cardio"></span> Cardio — shows up because "Cardio" is in today's focus
+      </div>
+      <div class="field-row">
+        <div class="field grow-2 autocomplete-wrap">
+          <label for="c-activity">Activity</label>
+          <input type="text" id="c-activity" placeholder="Running" autocomplete="off" />
+          <div class="suggestions" id="cardio-suggestions"></div>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="c-distance">Distance (km)</label>
+          <input type="number" id="c-distance" placeholder="5" />
+        </div>
+        <div class="field">
+          <label for="c-duration">Duration (min)</label>
+          <input type="number" id="c-duration" placeholder="30" />
+        </div>
+      </div>
+      <button class="submit-btn" id="submit-cardio" type="button">Log cardio</button>
+      <div class="error-msg" id="c-error"></div>
     </div>
     </div>
 
@@ -656,6 +808,29 @@
     <div class="header">
       <div class="eyebrow">History</div>
       <h1>Past days &amp; trends</h1>
+    </div>
+
+    <div class="consistency-panel">
+      <div class="chart-card-title" style="margin-bottom: 12px;">Consistency</div>
+      <div class="heatmap-wrap">
+        <div class="heatmap-daylabels" id="heatmap-daylabels"></div>
+        <div class="heatmap-grid" id="heatmap-grid"></div>
+      </div>
+      <div class="consistency-rating" id="consistency-rating"></div>
+      <div class="consistency-stats">
+        <div class="stat-card">
+          <div class="label"><span data-icon="flame"></span> Current streak</div>
+          <div class="value" id="current-streak">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="label"><span data-icon="history"></span> Longest streak</div>
+          <div class="value" id="longest-streak">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="label"><span data-icon="dumbbell"></span> Last 30 days</div>
+          <div class="value" id="last-30-count">0</div>
+        </div>
+      </div>
     </div>
 
     <div class="view-grid history-grid">
@@ -702,6 +877,7 @@
     edit: `<svg ${ICON_ATTRS}><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`,
     trash: `<svg ${ICON_ATTRS}><path d="M4 7h16"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/></svg>`,
     flame: `<svg ${ICON_ATTRS}><path d="M12 2c1.2 3-2.8 4.2-2.8 8.2a2.8 2.8 0 0 0 5.6 0c0-1-.9-1.9-.9-1.9s1.9 1 1.9 3.9a4.8 4.8 0 0 1-9.6 0C6.2 7.4 10 6.2 12 2Z"/></svg>`,
+    cardio: `<svg ${ICON_ATTRS}><path d="M3 12h4l2-7 4 14 2-7h6"/></svg>`,
   };
 
   // Fills every element tagged data-icon="name" with its matching SVG.
@@ -816,6 +992,26 @@
   }
 
   /* ============================================
+     KNOWN CARDIO ACTIVITIES (for the cardio autocomplete)
+     Same pattern as known exercises: starter list + learns new ones.
+     ============================================ */
+  const CARDIO_KEY = "gym-diet-tracker-known-cardio";
+  const SEED_CARDIO = [
+    "Running", "Cycling", "Rowing", "Jump Rope", "Elliptical",
+    "Stair Climber", "Swimming", "Walking", "HIIT",
+  ];
+  let knownCardio = [];
+
+  function loadKnownCardio() {
+    const raw = localStorage.getItem(CARDIO_KEY);
+    knownCardio = raw ? JSON.parse(raw) : [...SEED_CARDIO];
+  }
+
+  function saveKnownCardio() {
+    localStorage.setItem(CARDIO_KEY, JSON.stringify(knownCardio));
+  }
+
+  /* ============================================
      DAY NOTES (the "day focus" field)
      A separate object, keyed by date, holding one free-text
      note per day — independent from the exercise/meal entries.
@@ -833,15 +1029,16 @@
   }
 
   /* ============================================
-     MUSCLE GROUPS (day focus autocomplete)
+     DAY FOCUS OPTIONS (day focus autocomplete)
      Unlike the exercise autocomplete, this is a fixed list,
      and it works on the *last comma-separated segment* of
      the input — so you can keep adding "Chest, Shoulders, ..."
-     one group at a time in the same box.
+     one tag at a time in the same box. "Cardio" is special:
+     typing it as a tag reveals the cardio logging box.
      ============================================ */
-  const MUSCLE_GROUPS = [
+  const DAY_FOCUS_OPTIONS = [
     "Shoulders", "Chest", "Back", "Biceps", "Triceps", "Forearms",
-    "Abs", "Legs", "Calves",
+    "Abs", "Legs", "Calves", "Cardio", "Upper Body", "Lower Body", "Full Body",
   ];
 
   // Whatever's typed after the last comma is the "in progress" segment
@@ -853,7 +1050,7 @@
   function getMuscleSuggestions(segment) {
     if (!segment) return [];
     const s = segment.toLowerCase();
-    return MUSCLE_GROUPS.filter((g) => g.toLowerCase().startsWith(s));
+    return DAY_FOCUS_OPTIONS.filter((g) => g.toLowerCase().startsWith(s));
   }
 
   // Replaces the in-progress segment with the chosen group name,
@@ -897,12 +1094,13 @@
       .join(" ");
   }
 
-  // Suggestions to show in the dropdown while typing — any known
-  // exercise within a "close enough" edit distance, closest first.
-  function getSuggestions(query) {
+  // Suggestions to show in a dropdown while typing — any name in `list`
+  // within a "close enough" edit distance, closest first. Shared by
+  // both the exercise autocomplete and the cardio autocomplete.
+  function getSuggestionsFrom(query, list) {
     const q = query.trim().toLowerCase();
     if (!q) return [];
-    return knownExercises
+    return list
       .map((name) => ({ name, distance: levenshtein(q, name.toLowerCase()) }))
       .filter((item) => item.distance <= Math.max(2, Math.round(item.name.length * 0.35)))
       .sort((a, b) => a.distance - b.distance)
@@ -910,14 +1108,14 @@
       .map((item) => item.name);
   }
 
-  // Called on submit: decide the final exercise name to save.
-  // - Exact or very close match to a known exercise -> use the
-  //   known (correctly spelled) version.
-  // - No close match -> treat as a genuinely new exercise, learn it.
-  function resolveExerciseName(typed) {
+  // Called on submit: decide the final name to save against a given
+  // known-names list, learning new entries into it via saveListFn.
+  // - Exact or very close match -> use the known (correctly spelled) version.
+  // - No close match -> treat as genuinely new, learn it into the list.
+  function resolveNameAgainst(typed, list, saveListFn) {
     const trimmed = typed.trim();
     let best = null;
-    knownExercises.forEach((name) => {
+    list.forEach((name) => {
       const distance = levenshtein(trimmed.toLowerCase(), name.toLowerCase());
       if (!best || distance < best.distance) best = { name, distance };
     });
@@ -927,23 +1125,49 @@
     }
 
     const learned = titleCase(trimmed);
-    if (!knownExercises.some((n) => n.toLowerCase() === learned.toLowerCase())) {
-      knownExercises.push(learned);
-      saveKnownExercises();
+    if (!list.some((n) => n.toLowerCase() === learned.toLowerCase())) {
+      list.push(learned);
+      saveListFn();
     }
     return learned;
   }
+
+  function getSuggestions(query) { return getSuggestionsFrom(query, knownExercises); }
+  function resolveExerciseName(typed) { return resolveNameAgainst(typed, knownExercises, saveKnownExercises); }
+  function getCardioSuggestions(query) { return getSuggestionsFrom(query, knownCardio); }
+  function resolveCardioName(typed) { return resolveNameAgainst(typed, knownCardio, saveKnownCardio); }
 
   /* ============================================
      RENDERING
      Every time the data changes, we re-draw the parts
      of the page that depend on it.
      ============================================ */
+  // Animates a stat number counting up (or down) to its new value
+  // instead of snapping instantly — small touch, makes the dashboard
+  // feel alive when a new entry changes the totals.
+  function animateStatValue(elementId, newValue) {
+    const el = document.getElementById(elementId);
+    const oldValue = Number(el.textContent) || 0;
+    if (oldValue === newValue) {
+      el.textContent = newValue;
+      return;
+    }
+    const duration = 300;
+    const startTime = performance.now();
+    function step(now) {
+      const progress = Math.min((now - startTime) / duration, 1);
+      el.textContent = Math.round(oldValue + (newValue - oldValue) * progress);
+      if (progress < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+
   function render() {
     const isToday = selectedDate === TODAY;
     document.getElementById("date-label").textContent = formatDateLabel(selectedDate);
     document.getElementById("log-heading").textContent = isToday ? "Entries today" : "Entries";
     document.getElementById("day-focus-input").value = dayNotes[selectedDate] || "";
+    updateCardioVisibility();
     document.getElementById("log-target-note").innerHTML = isToday
       ? "Logging to <strong>today</strong>"
       : `Logging to <strong>${formatDateLabel(selectedDate)}</strong> — not today`;
@@ -952,13 +1176,13 @@
       .filter((e) => e.dateKey === selectedDate)
       .sort((a, b) => b.createdAt - a.createdAt);
 
-    const workoutCount = dayEntries.filter((e) => e.type === "workout").length;
+    const workoutCount = dayEntries.filter((e) => e.type === "workout" || e.type === "cardio").length;
     const calorieTotal = dayEntries
       .filter((e) => e.type === "food")
       .reduce((sum, e) => sum + Number(e.calories), 0);
 
-    document.getElementById("workout-count").textContent = workoutCount;
-    document.getElementById("calorie-total").textContent = calorieTotal;
+    animateStatValue("workout-count", workoutCount);
+    animateStatValue("calorie-total", calorieTotal);
     document.getElementById("logs-count").textContent =
       dayEntries.length === 0 ? "" : `${dayEntries.length} logged`;
 
@@ -983,12 +1207,37 @@
     });
   }
 
+  // Builds the "3 sets × 8 reps @ 60kg" line — or its to-failure variants:
+  // "to failure" when reps are unknown, "to failure (6)" when they were
+  // still logged. One shared function so display and future uses agree.
+  function formatWorkoutSub(entry) {
+    const setsPart = `${entry.sets ?? "?"} sets`;
+    let repsPart;
+    if (entry.toFailure) {
+      repsPart = (entry.reps != null) ? `to failure (${entry.reps})` : "to failure";
+    } else {
+      repsPart = `${entry.reps} reps`;
+    }
+    return `${setsPart} × ${repsPart} @ ${entry.weight}kg`;
+  }
+
+  function formatCardioSub(entry) {
+    const parts = [];
+    if (entry.distance != null) parts.push(`${entry.distance}km`);
+    if (entry.duration != null) parts.push(`${entry.duration} min`);
+    return parts.length ? parts.join(" · ") : "Logged";
+  }
+
+  const TYPE_ICONS = { workout: ICONS.dumbbell, food: ICONS.bowl, cardio: ICONS.cardio };
+
   // Normal, non-editing display of one log entry.
   function renderLogRow(item, entry) {
-    const icon = entry.type === "workout" ? ICONS.dumbbell : ICONS.bowl;
-    const title = entry.type === "workout" ? entry.exercise : entry.foodName;
-    const sub = entry.type === "workout"
-      ? `${entry.sets ?? "?"} sets × ${entry.reps} reps @ ${entry.weight}kg`
+    const icon = TYPE_ICONS[entry.type];
+    const title = entry.type === "workout" ? entry.exercise
+      : entry.type === "cardio" ? entry.activity
+      : entry.foodName;
+    const sub = entry.type === "workout" ? formatWorkoutSub(entry)
+      : entry.type === "cardio" ? formatCardioSub(entry)
       : `${entry.calories} kcal`;
 
     item.innerHTML = `
@@ -1008,7 +1257,12 @@
       editingId = entry.id;
       render();
     });
-    item.querySelector(".log-delete").addEventListener("click", () => deleteEntry(entry.id));
+    item.querySelector(".log-delete").addEventListener("click", () => {
+      // Fade out first, then actually remove — a delete should feel
+      // like something leaving, not just vanish instantly.
+      item.classList.add("removing");
+      setTimeout(() => deleteEntry(entry.id), 180);
+    });
   }
 
   // Inline edit form for one log entry. Built with createElement + .value
@@ -1032,7 +1286,7 @@
       const exerciseInput = makeInput("text", entry.exercise);
       const setsInput = makeInput("number", entry.sets ?? "", "Sets");
       const weightInput = makeInput("number", entry.weight, "Weight");
-      const repsInput = makeInput("number", entry.reps, "Reps");
+      const repsInput = makeInput("number", entry.reps ?? "", "Reps");
 
       const row1 = document.createElement("div");
       row1.className = "log-edit-row";
@@ -1042,8 +1296,32 @@
       row2.className = "log-edit-row";
       row2.append(setsInput, weightInput, repsInput);
 
+      const toFailureLabel = document.createElement("label");
+      toFailureLabel.className = "checkbox-row";
+      const toFailureInput = document.createElement("input");
+      toFailureInput.type = "checkbox";
+      toFailureInput.checked = !!entry.toFailure;
+      const toFailureText = document.createElement("span");
+      toFailureText.textContent = "To failure";
+      toFailureLabel.append(toFailureInput, toFailureText);
+
+      form.append(row1, row2, toFailureLabel);
+      fieldRefs = { exerciseInput, setsInput, weightInput, repsInput, toFailureInput };
+    } else if (entry.type === "cardio") {
+      const activityInput = makeInput("text", entry.activity);
+      const distanceInput = makeInput("number", entry.distance ?? "", "Distance (km)");
+      const durationInput = makeInput("number", entry.duration ?? "", "Duration (min)");
+
+      const row1 = document.createElement("div");
+      row1.className = "log-edit-row";
+      row1.appendChild(activityInput);
+
+      const row2 = document.createElement("div");
+      row2.className = "log-edit-row";
+      row2.append(distanceInput, durationInput);
+
       form.append(row1, row2);
-      fieldRefs = { exerciseInput, setsInput, weightInput, repsInput };
+      fieldRefs = { activityInput, distanceInput, durationInput };
     } else {
       const foodInput = makeInput("text", entry.foodName);
       const caloriesInput = makeInput("number", entry.calories, "Calories");
@@ -1078,12 +1356,26 @@
         const sets = fieldRefs.setsInput.value;
         const weight = fieldRefs.weightInput.value;
         const reps = fieldRefs.repsInput.value;
-        if (!exercise || sets === "" || weight === "" || reps === "") return; // silently ignore incomplete edits
+        const toFailure = fieldRefs.toFailureInput.checked;
+        if (!exercise || sets === "" || weight === "") return; // silently ignore incomplete edits
+        if (!toFailure && reps === "") return; // reps still required unless training to failure
         updateEntry(entry.id, {
           exercise: resolveExerciseName(exercise),
           sets: Number(sets),
           weight: Number(weight),
-          reps: Number(reps),
+          reps: reps === "" ? null : Number(reps),
+          toFailure,
+        });
+      } else if (entry.type === "cardio") {
+        const activity = fieldRefs.activityInput.value.trim();
+        const distance = fieldRefs.distanceInput.value;
+        const duration = fieldRefs.durationInput.value;
+        if (!activity) return;
+        if (distance === "" && duration === "") return; // need at least one
+        updateEntry(entry.id, {
+          activity: resolveCardioName(activity),
+          distance: distance === "" ? null : Number(distance),
+          duration: duration === "" ? null : Number(duration),
         });
       } else {
         const foodName = fieldRefs.foodInput.value.trim();
@@ -1093,6 +1385,30 @@
       }
     });
   }
+
+  /* ============================================
+     TOAST
+     A brief, self-dismissing confirmation message — shown after
+     logging or editing something, so an action gets a moment of
+     visible feedback instead of just silently updating the list.
+     ============================================ */
+  function showToast(message) {
+    let toast = document.getElementById("toast");
+    if (!toast) {
+      toast = document.createElement("div");
+      toast.id = "toast";
+      toast.className = "toast";
+      document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    // Remove and re-add the "show" class to restart the animation even
+    // if a toast is already mid-fade when a new one comes in.
+    toast.classList.remove("show");
+    void toast.offsetWidth; // force a reflow so the browser "notices" the reset
+    toast.classList.add("show");
+  }
+
+  const TOAST_MESSAGES = { workout: "Workout logged", food: "Meal logged", cardio: "Cardio logged" };
 
   /* ============================================
      ACTIONS
@@ -1107,6 +1423,7 @@
     });
     saveEntries();
     render();
+    showToast(TOAST_MESSAGES[newEntry.type] || "Logged");
   }
 
   function deleteEntry(id) {
@@ -1123,6 +1440,7 @@
     editingId = null;
     saveEntries();
     render();
+    showToast("Entry updated");
   }
 
   /* ============================================
@@ -1156,6 +1474,21 @@
   const exerciseInput = document.getElementById("w-exercise");
   const suggestionsBox = document.getElementById("exercise-suggestions");
 
+  // Shared across every autocomplete field: pressing Tab while the
+  // dropdown is open selects the top suggestion, same as clicking it,
+  // instead of just tabbing past the field with nothing chosen.
+  function enableTabToSelect(inputEl, boxEl) {
+    inputEl.addEventListener("keydown", (ev) => {
+      if (ev.key === "Tab" && boxEl.classList.contains("open")) {
+        const first = boxEl.querySelector(".suggestion-item");
+        if (first) {
+          ev.preventDefault();
+          first.click(); // reuses whatever click behavior is already wired up
+        }
+      }
+    });
+  }
+
   function renderSuggestions(matches) {
     suggestionsBox.innerHTML = "";
     if (matches.length === 0) {
@@ -1178,6 +1511,7 @@
   exerciseInput.addEventListener("input", () => {
     renderSuggestions(getSuggestions(exerciseInput.value));
   });
+  enableTabToSelect(exerciseInput, suggestionsBox);
 
   // Close the dropdown when clicking anywhere outside it
   document.addEventListener("click", (ev) => {
@@ -1193,24 +1527,37 @@
     const weightInput = document.getElementById("w-weight");
     const setsInput = document.getElementById("w-sets");
     const repsInput = document.getElementById("w-reps");
+    const toFailureInput = document.getElementById("w-to-failure");
 
     const rawExercise = exerciseInput.value.trim();
     const weight = weightInput.value;
     const sets = setsInput.value;
     const reps = repsInput.value;
+    const toFailure = toFailureInput.checked;
 
     if (!rawExercise) return (errorEl.textContent = "Enter an exercise name.");
     if (weight === "" || Number(weight) < 0) return (errorEl.textContent = "Enter a valid weight.");
     if (sets === "" || Number(sets) <= 0) return (errorEl.textContent = "Enter valid sets.");
-    if (reps === "" || Number(reps) <= 0) return (errorEl.textContent = "Enter valid reps.");
+    // Reps are only required when NOT training to failure — the whole
+    // point of "to failure" is often not knowing the number in advance.
+    if (!toFailure && (reps === "" || Number(reps) <= 0)) return (errorEl.textContent = "Enter valid reps.");
+    if (toFailure && reps !== "" && Number(reps) <= 0) return (errorEl.textContent = "Reps must be positive if entered.");
 
     const exercise = resolveExerciseName(rawExercise);
 
-    addEntry({ type: "workout", exercise, weight: Number(weight), sets: Number(sets), reps: Number(reps) });
+    addEntry({
+      type: "workout",
+      exercise,
+      weight: Number(weight),
+      sets: Number(sets),
+      reps: reps === "" ? null : Number(reps),
+      toFailure,
+    });
     exerciseInput.value = "";
     weightInput.value = "";
     setsInput.value = "";
     repsInput.value = "";
+    toFailureInput.checked = false;
     suggestionsBox.classList.remove("open");
   });
 
@@ -1233,6 +1580,88 @@
   });
 
   /* ============================================
+     CARDIO
+     Same autocomplete pattern as exercises, but the panel itself
+     only shows when "Cardio" appears as a tag in today's day focus
+     (see updateCardioVisibility, called from render() and from the
+     day-focus input handler).
+     ============================================ */
+  const cardioActivityInput = document.getElementById("c-activity");
+  const cardioSuggestionsBox = document.getElementById("cardio-suggestions");
+
+  function renderCardioSuggestions(matches) {
+    cardioSuggestionsBox.innerHTML = "";
+    if (matches.length === 0) {
+      cardioSuggestionsBox.classList.remove("open");
+      return;
+    }
+    matches.forEach((name) => {
+      const item = document.createElement("div");
+      item.className = "suggestion-item";
+      item.textContent = name;
+      item.addEventListener("click", () => {
+        cardioActivityInput.value = name;
+        cardioSuggestionsBox.classList.remove("open");
+      });
+      cardioSuggestionsBox.appendChild(item);
+    });
+    cardioSuggestionsBox.classList.add("open");
+  }
+
+  cardioActivityInput.addEventListener("input", () => {
+    renderCardioSuggestions(getCardioSuggestions(cardioActivityInput.value));
+  });
+  enableTabToSelect(cardioActivityInput, cardioSuggestionsBox);
+
+  document.addEventListener("click", (ev) => {
+    if (!cardioActivityInput.contains(ev.target) && !cardioSuggestionsBox.contains(ev.target)) {
+      cardioSuggestionsBox.classList.remove("open");
+    }
+  });
+
+  // Checks whether "Cardio" is one of the comma-separated tags in the
+  // day-focus field (exact tag match, not a loose substring check —
+  // so "Cardiology" typed by mistake wouldn't accidentally trigger it).
+  function hasCardioFocus(value) {
+    return value.split(",").map((s) => s.trim().toLowerCase()).includes("cardio");
+  }
+
+  function updateCardioVisibility() {
+    const isCardioDay = hasCardioFocus(document.getElementById("day-focus-input").value);
+    document.getElementById("cardio-panel").classList.toggle("visible", isCardioDay);
+  }
+
+  document.getElementById("submit-cardio").addEventListener("click", () => {
+    const errorEl = document.getElementById("c-error");
+    errorEl.textContent = "";
+
+    const distanceInput = document.getElementById("c-distance");
+    const durationInput = document.getElementById("c-duration");
+
+    const rawActivity = cardioActivityInput.value.trim();
+    const distance = distanceInput.value;
+    const duration = durationInput.value;
+
+    if (!rawActivity) return (errorEl.textContent = "Enter an activity.");
+    if (distance === "" && duration === "") return (errorEl.textContent = "Enter a distance, a duration, or both.");
+    if (distance !== "" && Number(distance) <= 0) return (errorEl.textContent = "Distance must be positive.");
+    if (duration !== "" && Number(duration) <= 0) return (errorEl.textContent = "Duration must be positive.");
+
+    const activity = resolveCardioName(rawActivity);
+
+    addEntry({
+      type: "cardio",
+      activity,
+      distance: distance === "" ? null : Number(distance),
+      duration: duration === "" ? null : Number(duration),
+    });
+    cardioActivityInput.value = "";
+    distanceInput.value = "";
+    durationInput.value = "";
+    cardioSuggestionsBox.classList.remove("open");
+  });
+
+  /* ============================================
      DATE DROPDOWN HANDLER
      ============================================ */
   document.getElementById("date-select").addEventListener("change", (ev) => {
@@ -1243,7 +1672,7 @@
   /* ============================================
      DAY FOCUS HANDLER
      Same dropdown pattern as the exercise autocomplete,
-     but suggestions come from the fixed MUSCLE_GROUPS list
+     but suggestions come from the fixed DAY_FOCUS_OPTIONS list
      and match against only the segment after the last comma.
      ============================================ */
   const dayFocusInput = document.getElementById("day-focus-input");
@@ -1264,6 +1693,7 @@
         dayNotes[selectedDate] = dayFocusInput.value;
         saveDayNotes();
         focusSuggestionsBox.classList.remove("open");
+        updateCardioVisibility();
         dayFocusInput.focus();
       });
       focusSuggestionsBox.appendChild(item);
@@ -1275,17 +1705,23 @@
     dayNotes[selectedDate] = ev.target.value;
     saveDayNotes();
     renderFocusSuggestions(getMuscleSuggestions(getCurrentSegment(ev.target.value)));
+    updateCardioVisibility();
   });
+  enableTabToSelect(dayFocusInput, focusSuggestionsBox);
 
-  // Tidy up trailing ", " once you click away, so a saved note
-  // reads "Chest, Shoulders" rather than "Chest, Shoulders, "
+  // Tidy up a trailing ", " once you're actually done editing — but
+  // NOT if focus immediately came right back to this field (which is
+  // exactly what happens after clicking a suggestion: the click causes
+  // a brief blur before the click handler re-focuses the input). Without
+  // this check, that brief blur would strip the comma we'd just added.
   dayFocusInput.addEventListener("blur", () => {
     setTimeout(() => {
+      if (document.activeElement === dayFocusInput) return; // refocused — still composing, don't trim yet
       const cleaned = dayFocusInput.value.trim().replace(/,\s*$/, "");
       dayFocusInput.value = cleaned;
       dayNotes[selectedDate] = cleaned;
       saveDayNotes();
-    }, 150); // delay so a suggestion click still registers first
+    }, 150);
   });
 
   document.addEventListener("click", (ev) => {
@@ -1515,7 +1951,7 @@
 
     sortedDates.forEach((dateKey) => {
       const dayEntries = entries.filter((e) => e.dateKey === dateKey);
-      const workoutCount = dayEntries.filter((e) => e.type === "workout").length;
+      const workoutCount = dayEntries.filter((e) => e.type === "workout" || e.type === "cardio").length;
       const calorieTotal = dayEntries
         .filter((e) => e.type === "food")
         .reduce((sum, e) => sum + Number(e.calories), 0);
@@ -1551,10 +1987,130 @@
     });
   }
 
+  /* ============================================
+     CONSISTENCY HEATMAP
+     A 12-week grid (Mon-Sun rows, weeks as columns) showing which
+     days had a workout logged — plus streaks and a rough consistency
+     percentage computed from the same data.
+     ============================================ */
+  const HEATMAP_WEEKS = 12;
+  const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+  function dateKeyOf(d) {
+    return d.toISOString().slice(0, 10);
+  }
+
+  function renderHeatmap() {
+    const loggedDates = new Set(
+      entries.filter((e) => e.type === "workout" || e.type === "cardio").map((e) => e.dateKey)
+    );
+    const todayDate = new Date(TODAY + "T00:00:00");
+
+    // Find the Monday of the current week, then step back to the
+    // Monday that starts our whole HEATMAP_WEEKS-week window.
+    const dayOfWeek = todayDate.getDay(); // 0 = Sun, 1 = Mon, ... 6 = Sat
+    const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    const currentMonday = new Date(todayDate);
+    currentMonday.setDate(currentMonday.getDate() - daysSinceMonday);
+    const startMonday = new Date(currentMonday);
+    startMonday.setDate(startMonday.getDate() - (HEATMAP_WEEKS - 1) * 7);
+
+    // Day-of-week labels down the left side (built once per render, cheap)
+    const labelsEl = document.getElementById("heatmap-daylabels");
+    labelsEl.innerHTML = "";
+    DAY_LABELS.forEach((label) => {
+      const el = document.createElement("div");
+      el.textContent = label;
+      labelsEl.appendChild(el);
+    });
+
+    // The grid itself: 12 columns (weeks) x 7 rows (days), oldest to newest
+    const gridEl = document.getElementById("heatmap-grid");
+    gridEl.innerHTML = "";
+    for (let col = 0; col < HEATMAP_WEEKS; col++) {
+      for (let row = 0; row < 7; row++) {
+        const cellDate = new Date(startMonday);
+        cellDate.setDate(cellDate.getDate() + col * 7 + row);
+        const cell = document.createElement("div");
+        cell.className = "heatmap-cell";
+        if (cellDate > todayDate) {
+          cell.classList.add("future"); // hasn't happened yet — render blank
+        } else if (loggedDates.has(dateKeyOf(cellDate))) {
+          cell.classList.add("logged");
+        }
+        cell.title = dateKeyOf(cellDate);
+        gridEl.appendChild(cell);
+      }
+    }
+
+    // Current streak: count backward from today. If today has nothing
+    // logged yet, start from yesterday instead — the day isn't over,
+    // so it shouldn't break an otherwise-intact streak.
+    let currentStreak = 0;
+    const cursor = new Date(todayDate);
+    if (!loggedDates.has(dateKeyOf(cursor))) cursor.setDate(cursor.getDate() - 1);
+    let guard = 0; // safety cap so a bug can't infinite-loop
+    while (loggedDates.has(dateKeyOf(cursor)) && guard < 3650) {
+      currentStreak++;
+      cursor.setDate(cursor.getDate() - 1);
+      guard++;
+    }
+
+    // Longest streak ever: walk every logged date in order, tracking
+    // the longest run of consecutive calendar days.
+    const sortedLoggedDates = [...loggedDates].sort();
+    let longestStreak = 0, run = 0, prevDateStr = null;
+    sortedLoggedDates.forEach((dateStr) => {
+      if (prevDateStr) {
+        const diffDays = Math.round((new Date(dateStr) - new Date(prevDateStr)) / 86400000);
+        run = diffDays === 1 ? run + 1 : 1;
+      } else {
+        run = 1;
+      }
+      longestStreak = Math.max(longestStreak, run);
+      prevDateStr = dateStr;
+    });
+
+    document.getElementById("current-streak").textContent = currentStreak;
+    document.getElementById("longest-streak").textContent = longestStreak;
+
+    // Workouts logged in the last 30 days (rolling window, not calendar month)
+    const last30Start = new Date(todayDate);
+    last30Start.setDate(last30Start.getDate() - 29);
+    let last30Count = 0;
+    loggedDates.forEach((dateStr) => {
+      const d = new Date(dateStr + "T00:00:00");
+      if (d >= last30Start && d <= todayDate) last30Count++;
+    });
+    document.getElementById("last-30-count").textContent = last30Count;
+
+    // Consistency rating: % of PAST days within the displayed 12-week
+    // window that have a workout logged. Future days in the window
+    // don't count against you — they just haven't happened yet.
+    let pastDaysInWindow = 0, loggedInWindow = 0;
+    for (let i = 0; i < HEATMAP_WEEKS * 7; i++) {
+      const d = new Date(startMonday);
+      d.setDate(d.getDate() + i);
+      if (d <= todayDate) {
+        pastDaysInWindow++;
+        if (loggedDates.has(dateKeyOf(d))) loggedInWindow++;
+      }
+    }
+    const ratingEl = document.getElementById("consistency-rating");
+    if (pastDaysInWindow < 7) {
+      ratingEl.textContent = "Log a few more days to see a consistency rating.";
+    } else {
+      const pct = Math.round((loggedInWindow / pastDaysInWindow) * 100);
+      const label = pct >= 70 ? "Great" : pct >= 40 ? "Average" : "Needs work";
+      ratingEl.textContent = `${pct}% of days logged over the last ${HEATMAP_WEEKS} weeks — ${label}`;
+    }
+  }
+
   function renderHistory() {
     populateChartExerciseSelect();
     renderDayList();
     renderCharts();
+    renderHeatmap();
   }
 
   /* ============================================
@@ -1562,6 +2118,7 @@
      ============================================ */
   loadEntries();
   loadKnownExercises();
+  loadKnownCardio();
   loadDayNotes();
   mountStaticIcons();
   syncDateInput();
