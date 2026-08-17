@@ -52,10 +52,13 @@
     color: var(--ink);
     font-family: var(--font-display);
     margin: 0;
-    padding: 32px 20px 80px 76px;
   }
 
-  .wrap { max-width: 1080px; margin: 0 auto; }
+  /* Sidebar-clearance padding lives here, not on body — .wrap only
+     ever renders inside the authenticated app (which has the sidebar),
+     never on the auth screen. Keeping it scoped this way is what makes
+     the login screen center correctly on any screen size. */
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 32px 20px 80px 76px; }
 
   /* ---------- Two-column layout (Log & History) ---------- */
   .view-grid {
@@ -390,12 +393,15 @@
     gap: 6px;
     font-size: 12px;
     font-weight: 600;
-    color: var(--cardio);
+    color: var(--accent);
     margin-bottom: 14px;
   }
   .panel-subtitle svg { width: 15px; height: 15px; flex-shrink: 0; }
+  .cardio-panel .panel-subtitle { color: var(--cardio); }
   .cardio-panel .submit-btn { background: var(--cardio); }
   .cardio-panel .submit-btn:hover { background: #632F35; }
+  #coach-dashboard { display: none; }
+  #coach-setup { display: none; }
   .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
   .log-target-note {
     font-size: 12px;
@@ -437,7 +443,7 @@
   .field { flex: 1; display: flex; flex-direction: column; gap: 4px; }
   .field.grow-2 { flex: 2; }
   .field label { font-size: 12px; font-weight: 600; color: var(--ink-soft); }
-  .field input {
+  .field input, .field select {
     font-family: var(--font-mono);
     font-size: 14px;
     padding: 9px 10px;
@@ -448,8 +454,8 @@
     width: 100%;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
   }
-  .field input:hover { border-color: #C9C7C0; }
-  .field input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .field input:hover, .field select:hover { border-color: #C9C7C0; }
+  .field input:focus, .field select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 
   .checkbox-row {
     display: flex;
@@ -723,6 +729,9 @@
     <button class="nav-btn" id="nav-history" type="button" title="History">
       <span class="nav-icon" data-icon="history"></span><span class="nav-label">History</span>
     </button>
+    <button class="nav-btn" id="nav-coach" type="button" title="Coach">
+      <span class="nav-icon" data-icon="coach"></span><span class="nav-label">Coach</span>
+    </button>
     <button class="nav-btn" id="nav-logout" type="button" title="Log out" style="margin-top: auto;">
       <span class="nav-icon" data-icon="logout"></span><span class="nav-label">Log out</span>
     </button>
@@ -910,6 +919,107 @@
     </div>
     </div>
   </div>
+
+  <div id="view-coach" class="view">
+    <div class="header">
+      <div class="eyebrow">Coach</div>
+      <h1>Your plan</h1>
+    </div>
+
+    <div id="coach-intro">
+      <div class="panel">
+        <div class="panel-subtitle">
+          <span data-icon="coach"></span> Meet your Coach
+        </div>
+        <p style="margin: 0 0 18px; font-size: 14px; color: var(--ink); line-height: 1.6;">
+          Coach is opt-in. Turn it on, answer a few quick questions — age, sex, weight, height, activity level, and your goal — and it'll calculate a personalized daily calorie and protein target using a standard formula. It'll also surface a few plain-language insights from what you're already logging, like plateau warnings and streak encouragement. Nothing here is medical advice, and you can change your answers anytime.
+        </p>
+        <div class="field-row" style="gap: 10px; margin-bottom: 0;">
+          <button class="submit-btn" id="coach-intro-yes" type="button" style="margin-top: 0;">Yes, set it up</button>
+          <button class="tab-btn" id="coach-intro-no" type="button">No thanks</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="coach-setup">
+      <div class="panel">
+        <div class="panel-subtitle">
+          <span data-icon="coach"></span> Tell it a bit about yourself to get personalized targets
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="coach-age">Age</label>
+            <input type="number" id="coach-age" placeholder="22" />
+          </div>
+          <div class="field">
+            <label for="coach-sex">Sex</label>
+            <select id="coach-sex">
+              <option value="">Select</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+            </select>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="coach-weight">Weight (kg)</label>
+            <input type="number" id="coach-weight" placeholder="70" />
+          </div>
+          <div class="field">
+            <label for="coach-height">Height (cm)</label>
+            <input type="number" id="coach-height" placeholder="175" />
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field grow-2">
+            <label for="coach-activity">Activity level</label>
+            <select id="coach-activity">
+              <option value="sedentary">Sedentary — little to no exercise</option>
+              <option value="light">Light — exercise 1-3 days/week</option>
+              <option value="moderate" selected>Moderate — exercise 3-5 days/week</option>
+              <option value="active">Active — exercise 6-7 days/week</option>
+              <option value="very_active">Very active — hard training daily</option>
+            </select>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field grow-2">
+            <label for="coach-goal">Goal</label>
+            <select id="coach-goal">
+              <option value="fat_loss">Fat loss</option>
+              <option value="maintenance">Maintenance</option>
+              <option value="muscle_gain" selected>Muscle gain</option>
+              <option value="endurance">Endurance</option>
+            </select>
+          </div>
+        </div>
+        <button class="submit-btn" id="coach-save" type="button">Calculate my targets</button>
+        <div class="error-msg" id="coach-error"></div>
+      </div>
+    </div>
+
+    <div id="coach-dashboard">
+      <div class="stats">
+        <div class="stat-card">
+          <div class="label"><span data-icon="flame"></span> Daily calorie target</div>
+          <div class="value" id="coach-calorie-target">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="label"><span data-icon="dumbbell"></span> Daily protein target</div>
+          <div class="value" id="coach-protein-target">0g</div>
+        </div>
+      </div>
+
+      <div class="logs-box">
+        <div class="logs-box-header">
+          <div class="logs-box-title">Insights</div>
+        </div>
+        <div class="logs-box-body" id="coach-insights"></div>
+      </div>
+
+      <button class="tab-btn" id="coach-edit" type="button" style="max-width: 200px;">Edit my info</button>
+    </div>
+  </div>
   </div>
   </div>
 
@@ -946,6 +1056,7 @@
     flame: `<svg ${ICON_ATTRS}><path d="M12 2c1.2 3-2.8 4.2-2.8 8.2a2.8 2.8 0 0 0 5.6 0c0-1-.9-1.9-.9-1.9s1.9 1 1.9 3.9a4.8 4.8 0 0 1-9.6 0C6.2 7.4 10 6.2 12 2Z"/></svg>`,
     cardio: `<svg ${ICON_ATTRS}><path d="M3 12h4l2-7 4 14 2-7h6"/></svg>`,
     logout: `<svg ${ICON_ATTRS}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>`,
+    coach: `<svg ${ICON_ATTRS}><circle cx="12" cy="12" r="9"/><path d="M14.8 9.2l-2.1 5.6-5.6 2.1 2.1-5.6 5.6-2.1Z"/></svg>`,
   };
 
   // Fills every element tagged data-icon="name" with its matching SVG.
@@ -1909,23 +2020,29 @@
   });
 
   /* ============================================
-     VIEW SWITCHING (Log <-> History)
+     VIEW SWITCHING (Log <-> History <-> Coach)
      ============================================ */
   const navLog = document.getElementById("nav-log");
   const navHistory = document.getElementById("nav-history");
+  const navCoach = document.getElementById("nav-coach");
   const viewLog = document.getElementById("view-log");
   const viewHistory = document.getElementById("view-history");
+  const viewCoach = document.getElementById("view-coach");
 
   function switchView(view) {
     viewLog.classList.toggle("active", view === "log");
     viewHistory.classList.toggle("active", view === "history");
+    viewCoach.classList.toggle("active", view === "coach");
     navLog.classList.toggle("active", view === "log");
     navHistory.classList.toggle("active", view === "history");
+    navCoach.classList.toggle("active", view === "coach");
     if (view === "history") renderHistory(); // build it fresh each time it's opened
+    if (view === "coach") renderCoach();
   }
 
   navLog.addEventListener("click", () => switchView("log"));
   navHistory.addEventListener("click", () => switchView("history"));
+  navCoach.addEventListener("click", () => switchView("coach"));
 
   /* ============================================
      CANVAS LINE CHART
@@ -2166,6 +2283,190 @@
   }
 
   /* ============================================
+     COACH
+     A simple opt-in "coach": collects age/sex/weight/height/activity/
+     goal once, uses that to calculate real calorie and protein targets
+     (Mifflin-St Jeor equation — the same formula most fitness apps use
+     under the hood), and generates a few plain-language insights from
+     data already being logged (plateaus, streaks).
+     ============================================ */
+  let profile = null; // null until loaded; { age, sex, weightKg, heightCm, activityLevel, goal, optedIn }
+
+  function rowToProfile(row) {
+    return {
+      age: row.age,
+      sex: row.sex,
+      weightKg: row.weight_kg,
+      heightCm: row.height_cm,
+      activityLevel: row.activity_level,
+      goal: row.goal,
+      optedIn: row.opted_in,
+    };
+  }
+
+  async function loadProfile() {
+    const { data, error } = await sb.from("profiles").select("*").maybeSingle();
+    if (error) { console.error("Failed to load profile:", error); profile = null; return; }
+    profile = data ? rowToProfile(data) : null;
+  }
+
+  function saveProfile(p) {
+    profile = p;
+    sb.from("profiles")
+      .upsert({
+        user_id: currentUser.id,
+        age: p.age,
+        sex: p.sex,
+        weight_kg: p.weightKg,
+        height_cm: p.heightCm,
+        activity_level: p.activityLevel,
+        goal: p.goal,
+        opted_in: true,
+      }, { onConflict: "user_id" })
+      .then(({ error }) => { if (error) console.error("Saving profile failed:", error); });
+  }
+
+  const ACTIVITY_MULTIPLIERS = {
+    sedentary: 1.2, light: 1.375, moderate: 1.55, active: 1.725, very_active: 1.9,
+  };
+  const GOAL_CALORIE_ADJUST = { fat_loss: -500, maintenance: 0, muscle_gain: 350, endurance: 200 };
+  const GOAL_PROTEIN_PER_KG = { fat_loss: 1.8, maintenance: 1.6, muscle_gain: 2.0, endurance: 1.6 };
+
+  // Mifflin-St Jeor: the standard, well-established formula for
+  // estimating resting calorie burn (BMR) from basic body stats.
+  function calculateBMR(p) {
+    const base = 10 * p.weightKg + 6.25 * p.heightCm - 5 * p.age;
+    return p.sex === "male" ? base + 5 : base - 161;
+  }
+
+  function calculateCoachTargets(p) {
+    const bmr = calculateBMR(p);
+    const tdee = bmr * ACTIVITY_MULTIPLIERS[p.activityLevel];
+    const calories = Math.round(tdee + GOAL_CALORIE_ADJUST[p.goal]);
+    const protein = Math.round(p.weightKg * GOAL_PROTEIN_PER_KG[p.goal]);
+    return { calories, protein };
+  }
+
+  // Looks for exercises where your top weight hasn't increased across
+  // your last 3 logged sessions of that exercise — a simple, honest
+  // plateau signal, not a diagnosis.
+  function computePlateauInsights() {
+    const byExercise = {};
+    entries
+      .filter((e) => e.type === "workout")
+      .forEach((e) => {
+        if (!byExercise[e.exercise]) byExercise[e.exercise] = [];
+        byExercise[e.exercise].push(e);
+      });
+
+    const insights = [];
+    Object.keys(byExercise).forEach((exercise) => {
+      const sessions = byExercise[exercise].sort((a, b) => a.createdAt - b.createdAt);
+      if (sessions.length < 3) return; // not enough history to judge yet
+      const lastThree = sessions.slice(-3).map((e) => e.weight);
+      const plateaued = lastThree[2] <= lastThree[0] && lastThree[1] <= lastThree[0];
+      if (plateaued) {
+        insights.push(`${exercise}: no weight increase across your last 3 sessions (${lastThree.join("kg → ")}kg) — consider a deload or switching things up.`);
+      }
+    });
+    return insights;
+  }
+
+  function renderCoach() {
+    const introEl = document.getElementById("coach-intro");
+    const setupEl = document.getElementById("coach-setup");
+    const dashboardEl = document.getElementById("coach-dashboard");
+
+    if (!profile || !profile.optedIn) {
+      introEl.style.display = "block";
+      setupEl.style.display = "none";
+      dashboardEl.style.display = "none";
+      return;
+    }
+
+    introEl.style.display = "none";
+    setupEl.style.display = "none";
+    dashboardEl.style.display = "block";
+
+    const targets = calculateCoachTargets(profile);
+    animateStatValue("coach-calorie-target", targets.calories);
+    document.getElementById("coach-protein-target").textContent = `${targets.protein}g`;
+
+    const insightsEl = document.getElementById("coach-insights");
+    insightsEl.innerHTML = "";
+
+    const insights = [];
+    const streak = computeCurrentStreak();
+    if (streak >= 3) {
+      insights.push(`🔥 You're on a ${streak}-day streak — keep it going.`);
+    } else if (streak === 0) {
+      insights.push(`It's been a bit since your last logged day. A short, easy session today keeps momentum alive.`);
+    }
+    insights.push(...computePlateauInsights());
+
+    if (insights.length === 0) {
+      insightsEl.innerHTML = '<div class="empty-state">Log a few more sessions and insights will start showing up here.</div>';
+      return;
+    }
+
+    insights.forEach((text) => {
+      const item = document.createElement("div");
+      item.className = "log-item";
+      item.style.display = "block";
+      item.textContent = text;
+      insightsEl.appendChild(item);
+    });
+  }
+
+  function fillCoachForm(p) {
+    document.getElementById("coach-age").value = p.age ?? "";
+    document.getElementById("coach-sex").value = p.sex ?? "";
+    document.getElementById("coach-weight").value = p.weightKg ?? "";
+    document.getElementById("coach-height").value = p.heightCm ?? "";
+    document.getElementById("coach-activity").value = p.activityLevel ?? "moderate";
+    document.getElementById("coach-goal").value = p.goal ?? "muscle_gain";
+  }
+
+  document.getElementById("coach-save").addEventListener("click", () => {
+    const errorEl = document.getElementById("coach-error");
+    errorEl.textContent = "";
+
+    const age = document.getElementById("coach-age").value;
+    const sex = document.getElementById("coach-sex").value;
+    const weightKg = document.getElementById("coach-weight").value;
+    const heightCm = document.getElementById("coach-height").value;
+    const activityLevel = document.getElementById("coach-activity").value;
+    const goal = document.getElementById("coach-goal").value;
+
+    if (!age || Number(age) <= 0) return (errorEl.textContent = "Enter a valid age.");
+    if (!sex) return (errorEl.textContent = "Select a sex.");
+    if (!weightKg || Number(weightKg) <= 0) return (errorEl.textContent = "Enter a valid weight.");
+    if (!heightCm || Number(heightCm) <= 0) return (errorEl.textContent = "Enter a valid height.");
+
+    saveProfile({
+      age: Number(age), sex, weightKg: Number(weightKg), heightCm: Number(heightCm),
+      activityLevel, goal, optedIn: true,
+    });
+    showToast("Coach targets calculated");
+    renderCoach();
+  });
+
+  document.getElementById("coach-edit").addEventListener("click", () => {
+    fillCoachForm(profile || {});
+    document.getElementById("coach-setup").style.display = "block";
+    document.getElementById("coach-dashboard").style.display = "none";
+  });
+
+  document.getElementById("coach-intro-yes").addEventListener("click", () => {
+    document.getElementById("coach-intro").style.display = "none";
+    document.getElementById("coach-setup").style.display = "block";
+  });
+
+  document.getElementById("coach-intro-no").addEventListener("click", () => {
+    switchView("log");
+  });
+
+  /* ============================================
      CONSISTENCY HEATMAP
      A 12-week grid (Mon-Sun rows, weeks as columns) showing which
      days had a workout logged — plus streaks and a rough consistency
@@ -2185,6 +2486,27 @@
     const month = String(d.getMonth() + 1).padStart(2, "0");
     const day = String(d.getDate()).padStart(2, "0");
     return `${year}-${month}-${day}`;
+  }
+
+  // Current streak: count backward from today. If today has nothing
+  // logged yet, start from yesterday instead — the day isn't over,
+  // so it shouldn't break an otherwise-intact streak. Standalone so
+  // both the heatmap and the Coach view can use the same logic.
+  function computeCurrentStreak() {
+    const loggedDates = new Set(
+      entries.filter((e) => e.type === "workout" || e.type === "cardio").map((e) => e.dateKey)
+    );
+    const todayDate = new Date(TODAY + "T00:00:00");
+    let currentStreak = 0;
+    const cursor = new Date(todayDate);
+    if (!loggedDates.has(dateKeyOf(cursor))) cursor.setDate(cursor.getDate() - 1);
+    let guard = 0; // safety cap so a bug can't infinite-loop
+    while (loggedDates.has(dateKeyOf(cursor)) && guard < 3650) {
+      currentStreak++;
+      cursor.setDate(cursor.getDate() - 1);
+      guard++;
+    }
+    return currentStreak;
   }
 
   function renderHeatmap() {
@@ -2230,18 +2552,7 @@
       }
     }
 
-    // Current streak: count backward from today. If today has nothing
-    // logged yet, start from yesterday instead — the day isn't over,
-    // so it shouldn't break an otherwise-intact streak.
-    let currentStreak = 0;
-    const cursor = new Date(todayDate);
-    if (!loggedDates.has(dateKeyOf(cursor))) cursor.setDate(cursor.getDate() - 1);
-    let guard = 0; // safety cap so a bug can't infinite-loop
-    while (loggedDates.has(dateKeyOf(cursor)) && guard < 3650) {
-      currentStreak++;
-      cursor.setDate(cursor.getDate() - 1);
-      guard++;
-    }
+    const currentStreak = computeCurrentStreak();
 
     // Longest streak ever: walk every logged date in order, tracking
     // the longest run of consecutive calendar days.
@@ -2321,7 +2632,7 @@
   // from the database, then reveals the actual app.
   async function handleSignedIn(user) {
     currentUser = user;
-    await Promise.all([loadEntries(), loadKnownExercises(), loadKnownCardio(), loadDayNotes()]);
+    await Promise.all([loadEntries(), loadKnownExercises(), loadKnownCardio(), loadDayNotes(), loadProfile()]);
     syncDateInput();
     showApp();
     render();
@@ -2350,7 +2661,7 @@
   document.getElementById("nav-logout").addEventListener("click", async () => {
     await sb.auth.signOut();
     currentUser = null;
-    entries = []; dayNotes = {}; knownExercises = []; knownCardio = [];
+    entries = []; dayNotes = {}; knownExercises = []; knownCardio = []; profile = null;
     document.getElementById("auth-email").value = "";
     document.getElementById("auth-password").value = "";
     document.getElementById("auth-error").textContent = "";
