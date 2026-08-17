@@ -2732,7 +2732,10 @@
     const container = document.getElementById("day-list");
     container.innerHTML = "";
 
-    const dateKeys = new Set([...entries.map((e) => e.dateKey), ...Object.keys(dayNotes)]);
+    // Only dates with actual logged entries show up here — a leftover
+    // day-focus note with nothing logged (or a day whose entries were
+    // later deleted) shouldn't produce a "Nothing logged" row.
+    const dateKeys = new Set(entries.map((e) => e.dateKey));
     const sortedDates = [...dateKeys].sort((a, b) => (a < b ? 1 : -1)); // newest first
 
     if (sortedDates.length === 0) {
