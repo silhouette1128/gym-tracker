@@ -97,16 +97,6 @@
   .auth-title { font-family: var(--font-heading); font-size: 24px; font-weight: 700; margin-bottom: 4px; }
   .auth-subtitle { font-size: 12.5px; color: var(--ink-soft); margin-bottom: 24px; }
   .auth-field { text-align: left; margin-bottom: 14px; }
-  .auth-switch { font-size: 12.5px; color: var(--ink-soft); margin-top: 16px; }
-  .auth-switch button {
-    background: none; border: none;
-    color: var(--accent);
-    font-weight: 700;
-    font-size: 12.5px;
-    cursor: pointer;
-    padding: 0 0 0 4px;
-    text-decoration: underline;
-  }
 
   .sidebar {
     position: fixed;
@@ -703,8 +693,8 @@
       <div class="logo-badge auth-logo-badge">
         <span>D</span><span>L</span><span>W</span><span>M</span>
       </div>
-      <div class="auth-title" id="auth-title">Welcome back</div>
-      <div class="auth-subtitle" id="auth-subtitle">Sign in to your log</div>
+      <div class="auth-title">Welcome back</div>
+      <div class="auth-subtitle">Sign in to your log</div>
 
       <div class="field auth-field">
         <label for="auth-email">Email</label>
@@ -712,15 +702,10 @@
       </div>
       <div class="field auth-field">
         <label for="auth-password">Password</label>
-        <input type="password" id="auth-password" placeholder="At least 6 characters" autocomplete="current-password" />
+        <input type="password" id="auth-password" placeholder="Your password" autocomplete="current-password" />
       </div>
       <button class="submit-btn" id="auth-submit" type="button">Sign in</button>
       <div class="error-msg" id="auth-error"></div>
-
-      <div class="auth-switch">
-        <span id="auth-switch-text">Don't have an account?</span>
-        <button id="auth-switch-btn" type="button">Sign up</button>
-      </div>
     </div>
   </div>
 
@@ -2322,8 +2307,6 @@
      you out); if not, the auth screen shows until sign-in/sign-up
      succeeds.
      ============================================ */
-  let authMode = "signin";
-
   function showAuthScreen() {
     document.getElementById("view-auth").classList.remove("hidden");
     document.getElementById("app-shell").classList.remove("visible");
@@ -2334,23 +2317,8 @@
     document.getElementById("app-shell").classList.add("visible");
   }
 
-  function updateAuthUI() {
-    const isSignIn = authMode === "signin";
-    document.getElementById("auth-title").textContent = isSignIn ? "Welcome back" : "Create your log";
-    document.getElementById("auth-subtitle").textContent = isSignIn ? "Sign in to your log" : "Sign up to get started";
-    document.getElementById("auth-submit").textContent = isSignIn ? "Sign in" : "Sign up";
-    document.getElementById("auth-switch-text").textContent = isSignIn ? "Don't have an account?" : "Already have an account?";
-    document.getElementById("auth-switch-btn").textContent = isSignIn ? "Sign up" : "Sign in";
-    document.getElementById("auth-error").textContent = "";
-  }
-
-  document.getElementById("auth-switch-btn").addEventListener("click", () => {
-    authMode = authMode === "signin" ? "signup" : "signin";
-    updateAuthUI();
-  });
-
-  // Runs once, right after a successful sign-in or sign-up: loads
-  // everything from the database, then reveals the actual app.
+  // Runs once, right after a successful sign-in: loads everything
+  // from the database, then reveals the actual app.
   async function handleSignedIn(user) {
     currentUser = user;
     await Promise.all([loadEntries(), loadKnownExercises(), loadKnownCardio(), loadDayNotes()]);
@@ -2368,23 +2336,14 @@
 
     const submitBtn = document.getElementById("auth-submit");
     submitBtn.disabled = true;
-    const originalLabel = submitBtn.textContent;
     submitBtn.textContent = "Please wait…";
 
-    const { data, error } = authMode === "signin"
-      ? await sb.auth.signInWithPassword({ email, password })
-      : await sb.auth.signUp({ email, password });
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
 
     submitBtn.disabled = false;
-    submitBtn.textContent = originalLabel;
+    submitBtn.textContent = "Sign in";
 
     if (error) { errorEl.textContent = error.message; return; }
-    if (!data.session) {
-      // Would happen if email confirmation were required — it isn't,
-      // per our Supabase settings, but this stays as an honest fallback.
-      errorEl.textContent = "Check your email to confirm your account.";
-      return;
-    }
     await handleSignedIn(data.user);
   });
 
@@ -2394,8 +2353,7 @@
     entries = []; dayNotes = {}; knownExercises = []; knownCardio = [];
     document.getElementById("auth-email").value = "";
     document.getElementById("auth-password").value = "";
-    authMode = "signin";
-    updateAuthUI();
+    document.getElementById("auth-error").textContent = "";
     showAuthScreen();
   });
 
