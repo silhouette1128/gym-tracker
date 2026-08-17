@@ -35,6 +35,30 @@
     --font-mono: "SF Mono", "Roboto Mono", Menlo, monospace;
   }
 
+  /* Dark theme: same variable names, different values — everything
+     built on top of these variables switches automatically, no
+     per-component dark-mode rules needed anywhere else. */
+  html[data-theme="dark"] {
+    --bg: #1C1A16;
+    --surface: #262320;
+    --ink: #EDE8D0;
+    --ink-soft: #A79E8C;
+    --border: #3A362E;
+    --accent: #5C8A68;
+    --accent-hover: #6B9975;
+    --accent-soft: #2C3A2F;
+    --workout: #5C8A68;
+    --workout-soft: #2C3A2F;
+    --food: #C98A4A;
+    --food-soft: #3A2E20;
+    --danger: #C97164;
+    --danger-soft: #3A2420;
+    --cardio: #B0707A;
+    --cardio-soft: #3A2228;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+    --shadow-md: 0 8px 24px rgba(0,0,0,0.45);
+  }
+
   * { box-sizing: border-box; }
 
   /* People who've asked their OS to minimize motion get near-instant
@@ -418,9 +442,21 @@
     font-weight: 700;
     margin-bottom: 10px;
   }
+  /* Small persistent label + input pairs — used instead of relying
+     on placeholder text, since placeholders vanish once a field has
+     a value (which every field here does, by design). */
+  .mini-field { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .mini-field label {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ink-soft);
+    white-space: nowrap;
+  }
   .plan-exercise-row {
     display: flex;
-    align-items: center;
+    align-items: flex-end;
     gap: 8px;
     margin-bottom: 8px;
   }
@@ -433,6 +469,7 @@
     border: 1px solid var(--border);
     background: var(--bg);
     color: var(--ink);
+    width: 100%;
   }
   .plan-exercise-row .plan-exercise-name { flex: 2; min-width: 0; }
   .plan-exercise-row .plan-sets,
@@ -444,6 +481,8 @@
     background: none; border: none; border-radius: 7px;
     color: var(--ink-soft);
     cursor: pointer; flex-shrink: 0;
+    align-self: flex-end;
+    margin-bottom: 1px;
   }
   .plan-exercise-remove:hover { background: var(--danger-soft); color: var(--danger); }
   .plan-add-exercise {
@@ -465,7 +504,7 @@
     padding: 12px 14px;
     margin-bottom: 8px;
     display: flex;
-    align-items: center;
+    align-items: flex-end;
     gap: 10px;
     transition: opacity 0.15s ease;
   }
@@ -480,6 +519,7 @@
     border: 1px solid var(--border);
     background: var(--bg);
     color: var(--ink);
+    width: 100%;
   }
   .checklist-field-name { flex: 1 1 120px; min-width: 90px; }
   .checklist-field-sets, .checklist-field-reps { width: 50px; flex: 0 0 auto; }
@@ -545,6 +585,7 @@
   }
   .tab-btn:hover { transform: translateY(-1px); }
   .tab-btn:active { transform: translateY(0) scale(0.98); }
+  .tab-btn.active { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
   .tab-btn.active[data-type="workout"] {
     background: var(--workout-soft); color: var(--workout); border-color: var(--workout);
   }
@@ -849,6 +890,9 @@
     <button class="nav-btn" id="nav-coach" type="button" title="Coach">
       <span class="nav-icon" data-icon="coach"></span><span class="nav-label">Coach</span>
     </button>
+    <button class="nav-btn" id="nav-profile" type="button" title="Profile">
+      <span class="nav-icon" data-icon="settings"></span><span class="nav-label">Profile</span>
+    </button>
     <button class="nav-btn" id="nav-logout" type="button" title="Log out" style="margin-top: auto;">
       <span class="nav-icon" data-icon="logout"></span><span class="nav-label">Log out</span>
     </button>
@@ -907,7 +951,7 @@
         </div>
         <div class="field-row">
           <div class="field">
-            <label for="w-weight">Weight (kg)</label>
+            <label for="w-weight" id="w-weight-label">Weight (kg)</label>
             <input type="number" id="w-weight" placeholder="60" />
           </div>
           <div class="field">
@@ -1023,7 +1067,7 @@
     <div class="charts-row">
       <div class="chart-card">
         <div class="chart-card-header">
-          <div class="chart-card-title">Weight trend</div>
+          <div class="chart-card-title" id="weight-chart-title">Weight trend (kg)</div>
           <select class="chart-select" id="chart-exercise-select"></select>
         </div>
         <canvas id="weight-chart" width="320" height="200"></canvas>
@@ -1081,12 +1125,19 @@
         </div>
         <div class="field-row">
           <div class="field">
-            <label for="coach-weight">Weight (kg)</label>
+            <label for="coach-weight" id="coach-weight-label">Weight (kg)</label>
             <input type="number" id="coach-weight" placeholder="70" />
           </div>
-          <div class="field">
+          <div class="field" id="coach-height-metric-field">
             <label for="coach-height">Height (cm)</label>
             <input type="number" id="coach-height" placeholder="175" />
+          </div>
+          <div class="field" id="coach-height-imperial-field" style="display: none;">
+            <label>Height (ft / in)</label>
+            <div style="display: flex; gap: 6px;">
+              <input type="number" id="coach-height-feet" placeholder="5" style="width: 50%;" />
+              <input type="number" id="coach-height-inches" placeholder="9" style="width: 50%;" />
+            </div>
           </div>
         </div>
         <div class="field-row">
@@ -1178,6 +1229,69 @@
       <button class="tab-btn" id="coach-edit" type="button" style="max-width: 200px;">Edit my info</button>
     </div>
   </div>
+
+  <div id="view-profile" class="view">
+    <div class="header">
+      <div class="eyebrow">Profile</div>
+      <h1>Settings</h1>
+    </div>
+
+    <div class="panel">
+      <div class="panel-subtitle"><span data-icon="settings"></span> Account</div>
+      <div style="font-size: 14px; margin-bottom: 14px; color: var(--ink);">
+        Signed in as <strong id="profile-email"></strong>
+      </div>
+      <button class="tab-btn" id="profile-logout" type="button" style="max-width: 160px;">Log out</button>
+    </div>
+
+    <div class="panel">
+      <div class="panel-subtitle"><span data-icon="settings"></span> Appearance</div>
+      <div class="tabs">
+        <button class="tab-btn active" id="theme-light-btn" type="button">☀️ Light</button>
+        <button class="tab-btn" id="theme-dark-btn" type="button">🌙 Dark</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-subtitle"><span data-icon="settings"></span> Units</div>
+      <p style="margin: 0 0 12px; font-size: 12.5px; color: var(--ink-soft);">
+        Display only — your data is always stored consistently underneath, so switching this is always safe.
+      </p>
+      <div class="tabs">
+        <button class="tab-btn active" id="units-kg-btn" type="button">Kilograms / cm</button>
+        <button class="tab-btn" id="units-lbs-btn" type="button">Pounds / ft-in</button>
+      </div>
+    </div>
+
+    <div class="panel" style="border-color: var(--danger);">
+      <div class="panel-subtitle" style="color: var(--danger);"><span data-icon="trash"></span> Danger zone</div>
+      <p style="font-size: 13px; color: var(--ink-soft); margin: 0 0 14px; line-height: 1.5;">
+        Permanently erase all your logged data — workouts, meals, cardio, day notes, Coach profile, and any saved plan. Your login itself stays intact.
+      </p>
+      <button class="tab-btn" id="reset-open-btn" type="button" style="border-color: var(--danger); color: var(--danger); max-width: 220px;">Reset account data</button>
+
+      <div id="reset-confirm-panel" style="display: none; margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--border);">
+        <div style="font-size: 13px; color: var(--ink); margin-bottom: 10px; font-weight: 700;">This will permanently delete:</div>
+        <ul style="font-size: 13px; color: var(--ink-soft); margin: 0 0 16px; padding-left: 18px; line-height: 1.7;">
+          <li>Every logged workout, meal, and cardio entry</li>
+          <li>All day-focus notes</li>
+          <li>Your learned exercise and cardio autocomplete lists</li>
+          <li>Your Coach profile and calculated targets</li>
+          <li>Any saved weekly workout plan</li>
+        </ul>
+        <div style="font-size: 13px; color: var(--ink); margin-bottom: 6px;">
+          Type your email (<strong id="reset-confirm-email-display"></strong>) to confirm:
+        </div>
+        <div class="field" style="margin-bottom: 14px;">
+          <input type="text" id="reset-confirm-input" placeholder="Type your email exactly" autocomplete="off" />
+        </div>
+        <div class="field-row" style="gap: 10px; margin-bottom: 0;">
+          <button class="submit-btn" id="reset-confirm-btn" type="button" disabled style="margin-top: 0; background: var(--danger); opacity: 0.5; cursor: not-allowed;">Yes, delete everything</button>
+          <button class="tab-btn" id="reset-cancel-btn" type="button">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
   </div>
   </div>
 
@@ -1215,6 +1329,7 @@
     cardio: `<svg ${ICON_ATTRS}><path d="M3 12h4l2-7 4 14 2-7h6"/></svg>`,
     logout: `<svg ${ICON_ATTRS}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>`,
     coach: `<svg ${ICON_ATTRS}><circle cx="12" cy="12" r="9"/><path d="M14.8 9.2l-2.1 5.6-5.6 2.1 2.1-5.6 5.6-2.1Z"/></svg>`,
+    settings: `<svg ${ICON_ATTRS}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.04 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 8.96 19.3a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.04H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.7 8.96a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1.04-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15.04 4.7a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 1.56 1.04H21a2 2 0 1 1 0 4h-.09A1.7 1.7 0 0 0 19.4 15Z"/></svg>`,
   };
 
   // Fills every element tagged data-icon="name" with its matching SVG.
@@ -1224,6 +1339,55 @@
     document.querySelectorAll("[data-icon]").forEach((el) => {
       el.innerHTML = ICONS[el.dataset.icon] || "";
     });
+  }
+
+  /* ============================================
+     USER SETTINGS (theme + display units)
+     Kept separate from the Coach `profiles` table on purpose — these
+     are general app preferences anyone can set, whether or not
+     they've ever opted into Coach.
+     ============================================ */
+  let userSettings = { theme: "light", units: "kg" }; // sensible defaults until loaded
+
+  async function loadUserSettings() {
+    const { data, error } = await sb.from("user_settings").select("*").maybeSingle();
+    if (error) { console.error("Failed to load settings:", error); return; }
+    if (data) userSettings = { theme: data.theme, units: data.units };
+  }
+
+  function saveUserSettings() {
+    sb.from("user_settings")
+      .upsert({ user_id: currentUser.id, theme: userSettings.theme, units: userSettings.units }, { onConflict: "user_id" })
+      .then(({ error }) => { if (error) console.error("Saving settings failed:", error); });
+  }
+
+  function applyTheme() {
+    document.documentElement.setAttribute("data-theme", userSettings.theme === "dark" ? "dark" : "light");
+  }
+
+  // ---- Weight/height display conversion (display-only — everything
+  // is always stored in kg/cm underneath, regardless of this setting) ----
+  const KG_PER_LB = 0.453592;
+  const CM_PER_INCH = 2.54;
+
+  function kgToDisplay(kg) {
+    if (kg == null) return kg;
+    return userSettings.units === "lbs" ? Math.round((kg / KG_PER_LB) * 10) / 10 : kg;
+  }
+  function displayToKg(value) {
+    const num = Number(value);
+    return userSettings.units === "lbs" ? num * KG_PER_LB : num;
+  }
+  function weightUnitLabel() { return userSettings.units === "lbs" ? "lb" : "kg"; }
+
+  function cmToFeetInches(cm) {
+    const totalInches = cm / CM_PER_INCH;
+    const feet = Math.floor(totalInches / 12);
+    const inches = Math.round(totalInches % 12);
+    return { feet, inches };
+  }
+  function feetInchesToCm(feet, inches) {
+    return (Number(feet) * 12 + Number(inches)) * CM_PER_INCH;
   }
 
   /* ============================================
@@ -1584,6 +1748,7 @@
   }
 
   function render() {
+    document.getElementById("w-weight-label").textContent = `Weight (${weightUnitLabel()})`;
     const isToday = selectedDate === TODAY;
     document.getElementById("date-label").textContent = formatDateLabel(selectedDate);
     document.getElementById("log-heading").textContent = isToday ? "Entries today" : "Entries";
@@ -1640,7 +1805,7 @@
     } else {
       repsPart = `${entry.reps} reps`;
     }
-    return `${setsPart} × ${repsPart} @ ${entry.weight}kg`;
+    return `${setsPart} × ${repsPart} @ ${kgToDisplay(entry.weight)}${weightUnitLabel()}`;
   }
 
   function formatCardioSub(entry) {
@@ -1707,7 +1872,7 @@
     if (entry.type === "workout") {
       const exerciseInput = makeInput("text", entry.exercise);
       const setsInput = makeInput("number", entry.sets ?? "", "Sets");
-      const weightInput = makeInput("number", entry.weight, "Weight");
+      const weightInput = makeInput("number", kgToDisplay(entry.weight), `Weight (${weightUnitLabel()})`);
       const repsInput = makeInput("number", entry.reps ?? "", "Reps");
 
       const row1 = document.createElement("div");
@@ -1784,7 +1949,7 @@
         updateEntry(entry.id, {
           exercise: resolveExerciseName(exercise),
           sets: Number(sets),
-          weight: Number(weight),
+          weight: displayToKg(weight),
           reps: reps === "" ? null : Number(reps),
           toFailure,
         });
@@ -1999,7 +2164,7 @@
     addEntry({
       type: "workout",
       exercise,
-      weight: Number(weight),
+      weight: displayToKg(weight),
       sets: Number(sets),
       reps: reps === "" ? null : Number(reps),
       toFailure,
@@ -2149,9 +2314,18 @@
       card.className = "checklist-card" + (existing ? " done" : "");
       card.innerHTML = `
         <div class="checklist-fields">
-          <input type="text" class="checklist-field-name" value="${existing ? existing.activity : suggestion.activity}" />
-          <input type="number" class="checklist-field-sets" style="width:64px;" value="${existing && existing.distance != null ? existing.distance : ""}" placeholder="km" />
-          <input type="number" class="checklist-field-reps" style="width:64px;" value="${existing && existing.duration != null ? existing.duration : suggestion.duration}" placeholder="min" />
+          <div class="mini-field" style="flex: 1 1 120px; min-width: 90px;">
+            <label>Activity</label>
+            <input type="text" class="checklist-field-name" value="${existing ? existing.activity : suggestion.activity}" />
+          </div>
+          <div class="mini-field" style="width: 64px; flex: 0 0 auto;">
+            <label>Km</label>
+            <input type="number" class="checklist-field-sets" value="${existing && existing.distance != null ? existing.distance : ""}" />
+          </div>
+          <div class="mini-field" style="width: 64px; flex: 0 0 auto;">
+            <label>Min</label>
+            <input type="number" class="checklist-field-reps" value="${existing && existing.duration != null ? existing.duration : suggestion.duration}" />
+          </div>
         </div>
         <button type="button" class="checklist-check${existing ? " checked" : ""}">${CHECK_ICON}</button>
       `;
@@ -2183,10 +2357,22 @@
       card.className = "checklist-card" + (existing ? " done" : "");
       card.innerHTML = `
         <div class="checklist-fields">
-          <input type="text" class="checklist-field-name" value="${existing ? existing.exercise : planEx.exercise}" />
-          <input type="number" class="checklist-field-sets" value="${existing && existing.sets != null ? existing.sets : planEx.sets}" placeholder="Sets" />
-          <input type="number" class="checklist-field-reps" value="${existing && existing.reps != null ? existing.reps : planEx.repsLow}" placeholder="Reps" />
-          <input type="number" class="checklist-field-weight" value="${existing && existing.weight != null ? existing.weight : ""}" placeholder="kg" />
+          <div class="mini-field" style="flex: 1 1 120px; min-width: 90px;">
+            <label>Exercise</label>
+            <input type="text" class="checklist-field-name" value="${existing ? existing.exercise : planEx.exercise}" />
+          </div>
+          <div class="mini-field" style="width: 56px; flex: 0 0 auto;">
+            <label>Sets</label>
+            <input type="number" class="checklist-field-sets" value="${existing && existing.sets != null ? existing.sets : planEx.sets}" />
+          </div>
+          <div class="mini-field" style="width: 56px; flex: 0 0 auto;">
+            <label>Reps</label>
+            <input type="number" class="checklist-field-reps" value="${existing && existing.reps != null ? existing.reps : planEx.repsLow}" />
+          </div>
+          <div class="mini-field" style="width: 70px; flex: 0 0 auto;">
+            <label>Weight (${weightUnitLabel()})</label>
+            <input type="number" class="checklist-field-weight" value="${existing && existing.weight != null ? kgToDisplay(existing.weight) : ""}" />
+          </div>
         </div>
         <button type="button" class="checklist-check${existing ? " checked" : ""}">${CHECK_ICON}</button>
       `;
@@ -2210,7 +2396,7 @@
             type: "workout", exercise,
             sets: Number(setsInput.value) || planEx.sets,
             reps: Number(repsInput.value) || planEx.repsLow,
-            weight: Number(weightInput.value),
+            weight: displayToKg(weightInput.value),
             toFailure: false,
           });
         }
@@ -2318,29 +2504,35 @@
   });
 
   /* ============================================
-     VIEW SWITCHING (Log <-> History <-> Coach)
+     VIEW SWITCHING (Log <-> History <-> Coach <-> Profile)
      ============================================ */
   const navLog = document.getElementById("nav-log");
   const navHistory = document.getElementById("nav-history");
   const navCoach = document.getElementById("nav-coach");
+  const navProfile = document.getElementById("nav-profile");
   const viewLog = document.getElementById("view-log");
   const viewHistory = document.getElementById("view-history");
   const viewCoach = document.getElementById("view-coach");
+  const viewProfile = document.getElementById("view-profile");
 
   function switchView(view) {
     viewLog.classList.toggle("active", view === "log");
     viewHistory.classList.toggle("active", view === "history");
     viewCoach.classList.toggle("active", view === "coach");
+    viewProfile.classList.toggle("active", view === "profile");
     navLog.classList.toggle("active", view === "log");
     navHistory.classList.toggle("active", view === "history");
     navCoach.classList.toggle("active", view === "coach");
+    navProfile.classList.toggle("active", view === "profile");
     if (view === "history") renderHistory(); // build it fresh each time it's opened
     if (view === "coach") renderCoach();
+    if (view === "profile") renderProfile();
   }
 
   navLog.addEventListener("click", () => switchView("log"));
   navHistory.addEventListener("click", () => switchView("history"));
   navCoach.addEventListener("click", () => switchView("coach"));
+  navProfile.addEventListener("click", () => switchView("profile"));
 
   /* ============================================
      CANVAS LINE CHART
@@ -2484,7 +2676,7 @@
     return entries
       .filter((e) => e.type === "workout" && e.exercise === exerciseName)
       .sort((a, b) => a.createdAt - b.createdAt)
-      .map((e) => ({ label: e.dateKey, value: e.weight }));
+      .map((e) => ({ label: e.dateKey, value: kgToDisplay(e.weight) }));
   }
 
   // Total calories per day, oldest first.
@@ -2521,6 +2713,7 @@
   function renderCharts() {
     const select = document.getElementById("chart-exercise-select");
     const weightData = select.value ? getExerciseChartData(select.value) : [];
+    document.getElementById("weight-chart-title").textContent = `Weight trend (${weightUnitLabel()})`;
     drawLineChart(document.getElementById("weight-chart"), weightData, "#2F5FA8");
     drawLineChart(document.getElementById("calorie-chart"), getCalorieChartData(), "#C9762E");
   }
@@ -2795,8 +2988,14 @@
         const row = document.createElement("div");
         row.className = "plan-exercise-row";
         row.innerHTML = `
-          <input type="text" class="plan-cardio-activity" value="${day.exercises[0]?.activity || "Running"}" style="flex:2;" />
-          <input type="number" class="plan-cardio-duration" value="${day.exercises[0]?.duration || 30}" style="flex:1;" placeholder="min" />
+          <div class="mini-field" style="flex: 2; min-width: 0;">
+            <label>Activity</label>
+            <input type="text" class="plan-cardio-activity" value="${day.exercises[0]?.activity || "Running"}" />
+          </div>
+          <div class="mini-field" style="flex: 1; min-width: 0;">
+            <label>Duration (min)</label>
+            <input type="number" class="plan-cardio-duration" value="${day.exercises[0]?.duration || 30}" />
+          </div>
         `;
         card.appendChild(row);
       } else {
@@ -2823,10 +3022,22 @@
     const row = document.createElement("div");
     row.className = "plan-exercise-row";
     row.innerHTML = `
-      <input type="text" class="plan-exercise-name" value="${ex.exercise || ""}" placeholder="Exercise" />
-      <input type="number" class="plan-sets" value="${ex.sets}" placeholder="Sets" />
-      <input type="number" class="plan-reps-low" value="${ex.repsLow}" placeholder="Reps low" />
-      <input type="number" class="plan-reps-high" value="${ex.repsHigh}" placeholder="Reps high" />
+      <div class="mini-field" style="flex: 2; min-width: 0;">
+        <label>Exercise</label>
+        <input type="text" class="plan-exercise-name" value="${ex.exercise || ""}" />
+      </div>
+      <div class="mini-field" style="flex: 1; min-width: 0;">
+        <label>Sets</label>
+        <input type="number" class="plan-sets" value="${ex.sets}" />
+      </div>
+      <div class="mini-field" style="flex: 1; min-width: 0;">
+        <label>Reps low</label>
+        <input type="number" class="plan-reps-low" value="${ex.repsLow}" />
+      </div>
+      <div class="mini-field" style="flex: 1; min-width: 0;">
+        <label>Reps high</label>
+        <input type="number" class="plan-reps-high" value="${ex.repsHigh}" />
+      </div>
       <button type="button" class="plan-exercise-remove" aria-label="Remove exercise">${ICONS.trash}</button>
     `;
     row.querySelector(".plan-exercise-remove").addEventListener("click", () => row.remove());
@@ -2879,7 +3090,15 @@
     document.getElementById("coach-plan-preview").style.display = "block";
   }
 
+  function updateCoachUnitFields() {
+    const isImperial = userSettings.units === "lbs";
+    document.getElementById("coach-weight-label").textContent = `Weight (${weightUnitLabel()})`;
+    document.getElementById("coach-height-metric-field").style.display = isImperial ? "none" : "block";
+    document.getElementById("coach-height-imperial-field").style.display = isImperial ? "block" : "none";
+  }
+
   function renderCoach() {
+    updateCoachUnitFields();
     const introEl = document.getElementById("coach-intro");
     const setupEl = document.getElementById("coach-setup");
     const previewEl = document.getElementById("coach-plan-preview");
@@ -2937,8 +3156,14 @@
   function fillCoachForm(p) {
     document.getElementById("coach-age").value = p.age ?? "";
     document.getElementById("coach-sex").value = p.sex ?? "";
-    document.getElementById("coach-weight").value = p.weightKg ?? "";
-    document.getElementById("coach-height").value = p.heightCm ?? "";
+    document.getElementById("coach-weight").value = p.weightKg != null ? kgToDisplay(p.weightKg) : "";
+    if (userSettings.units === "lbs") {
+      const split = p.heightCm != null ? cmToFeetInches(p.heightCm) : { feet: "", inches: "" };
+      document.getElementById("coach-height-feet").value = split.feet;
+      document.getElementById("coach-height-inches").value = split.inches;
+    } else {
+      document.getElementById("coach-height").value = p.heightCm ?? "";
+    }
     document.getElementById("coach-activity").value = p.activityLevel ?? "moderate";
     document.getElementById("coach-goal").value = p.goal ?? "muscle_gain";
     document.getElementById("coach-days").value = p.daysPerWeek ?? "4";
@@ -2950,19 +3175,29 @@
 
     const age = document.getElementById("coach-age").value;
     const sex = document.getElementById("coach-sex").value;
-    const weightKg = document.getElementById("coach-weight").value;
-    const heightCm = document.getElementById("coach-height").value;
+    const weightRaw = document.getElementById("coach-weight").value;
     const activityLevel = document.getElementById("coach-activity").value;
     const goal = document.getElementById("coach-goal").value;
     const daysPerWeek = Number(document.getElementById("coach-days").value);
 
+    const isImperial = userSettings.units === "lbs";
+    let heightCm;
+    if (isImperial) {
+      const feet = document.getElementById("coach-height-feet").value;
+      const inches = document.getElementById("coach-height-inches").value;
+      heightCm = (feet === "" && inches === "") ? null : feetInchesToCm(feet || 0, inches || 0);
+    } else {
+      const heightRaw = document.getElementById("coach-height").value;
+      heightCm = heightRaw === "" ? null : Number(heightRaw);
+    }
+
     if (!age || Number(age) <= 0) return (errorEl.textContent = "Enter a valid age.");
     if (!sex) return (errorEl.textContent = "Select a sex.");
-    if (!weightKg || Number(weightKg) <= 0) return (errorEl.textContent = "Enter a valid weight.");
-    if (!heightCm || Number(heightCm) <= 0) return (errorEl.textContent = "Enter a valid height.");
+    if (!weightRaw || Number(weightRaw) <= 0) return (errorEl.textContent = "Enter a valid weight.");
+    if (!heightCm || heightCm <= 0) return (errorEl.textContent = "Enter a valid height.");
 
     saveProfile({
-      age: Number(age), sex, weightKg: Number(weightKg), heightCm: Number(heightCm),
+      age: Number(age), sex, weightKg: displayToKg(weightRaw), heightCm,
       activityLevel, goal, daysPerWeek, followPlan: profile ? profile.followPlan : false, optedIn: true,
     });
     showToast("Targets calculated");
@@ -3181,7 +3416,8 @@
   // from the database, then reveals the actual app.
   async function handleSignedIn(user) {
     currentUser = user;
-    await Promise.all([loadEntries(), loadKnownExercises(), loadKnownCardio(), loadDayNotes(), loadProfile(), loadWeeklyPlan()]);
+    await Promise.all([loadEntries(), loadKnownExercises(), loadKnownCardio(), loadDayNotes(), loadProfile(), loadWeeklyPlan(), loadUserSettings()]);
+    applyTheme();
     syncDateInput();
     showApp();
     render();
@@ -3207,14 +3443,122 @@
     await handleSignedIn(data.user);
   });
 
-  document.getElementById("nav-logout").addEventListener("click", async () => {
+  /* ============================================
+     PROFILE (theme, units, account, danger zone)
+     ============================================ */
+  async function handleLogout() {
     await sb.auth.signOut();
     currentUser = null;
     entries = []; dayNotes = {}; knownExercises = []; knownCardio = []; profile = null; weeklyPlan = {};
+    userSettings = { theme: "light", units: "kg" };
+    applyTheme();
     document.getElementById("auth-email").value = "";
     document.getElementById("auth-password").value = "";
     document.getElementById("auth-error").textContent = "";
     showAuthScreen();
+  }
+
+  document.getElementById("nav-logout").addEventListener("click", handleLogout);
+  document.getElementById("profile-logout").addEventListener("click", handleLogout);
+
+  function renderProfile() {
+    document.getElementById("profile-email").textContent = currentUser.email;
+    document.getElementById("theme-light-btn").classList.toggle("active", userSettings.theme !== "dark");
+    document.getElementById("theme-dark-btn").classList.toggle("active", userSettings.theme === "dark");
+    document.getElementById("units-kg-btn").classList.toggle("active", userSettings.units !== "lbs");
+    document.getElementById("units-lbs-btn").classList.toggle("active", userSettings.units === "lbs");
+    // reset any in-progress delete confirmation each time this view opens
+    document.getElementById("reset-confirm-panel").style.display = "none";
+    document.getElementById("reset-confirm-input").value = "";
+    setResetButtonEnabled(false);
+  }
+
+  document.getElementById("theme-light-btn").addEventListener("click", () => {
+    userSettings.theme = "light";
+    applyTheme();
+    saveUserSettings();
+    renderProfile();
+  });
+  document.getElementById("theme-dark-btn").addEventListener("click", () => {
+    userSettings.theme = "dark";
+    applyTheme();
+    saveUserSettings();
+    renderProfile();
+  });
+
+  document.getElementById("units-kg-btn").addEventListener("click", () => {
+    userSettings.units = "kg";
+    saveUserSettings();
+    renderProfile();
+    render();       // refresh weight displays in the log
+    renderCoach();  // refresh Coach's weight/height fields if visible
+  });
+  document.getElementById("units-lbs-btn").addEventListener("click", () => {
+    userSettings.units = "lbs";
+    saveUserSettings();
+    renderProfile();
+    render();
+    renderCoach();
+  });
+
+  // ---- Reset account data: multi-step confirmation ----
+  function setResetButtonEnabled(enabled) {
+    const btn = document.getElementById("reset-confirm-btn");
+    btn.disabled = !enabled;
+    btn.style.opacity = enabled ? "1" : "0.5";
+    btn.style.cursor = enabled ? "pointer" : "not-allowed";
+  }
+
+  document.getElementById("reset-open-btn").addEventListener("click", () => {
+    document.getElementById("reset-confirm-email-display").textContent = currentUser.email;
+    document.getElementById("reset-confirm-panel").style.display = "block";
+    document.getElementById("reset-confirm-input").value = "";
+    setResetButtonEnabled(false);
+  });
+
+  document.getElementById("reset-cancel-btn").addEventListener("click", () => {
+    document.getElementById("reset-confirm-panel").style.display = "none";
+    document.getElementById("reset-confirm-input").value = "";
+    setResetButtonEnabled(false);
+  });
+
+  document.getElementById("reset-confirm-input").addEventListener("input", (ev) => {
+    setResetButtonEnabled(ev.target.value.trim() === currentUser.email);
+  });
+
+  document.getElementById("reset-confirm-btn").addEventListener("click", async () => {
+    if (document.getElementById("reset-confirm-input").value.trim() !== currentUser.email) return;
+
+    const btn = document.getElementById("reset-confirm-btn");
+    btn.disabled = true;
+    btn.textContent = "Deleting…";
+
+    const uid = currentUser.id;
+    try {
+      await Promise.all([
+        sb.from("entries").delete().eq("user_id", uid),
+        sb.from("day_notes").delete().eq("user_id", uid),
+        sb.from("known_names").delete().eq("user_id", uid),
+        sb.from("profiles").delete().eq("user_id", uid),
+        sb.from("workout_plans").delete().eq("user_id", uid),
+      ]);
+    } catch (err) {
+      console.error("Reset failed:", err);
+      showToast("Something went wrong — check your connection and try again");
+      btn.disabled = false;
+      btn.textContent = "Yes, delete everything";
+      return;
+    }
+
+    // Reload everything fresh from (now-empty) tables, rather than
+    // just clearing local state, so we're 100% in sync with the database.
+    await Promise.all([loadEntries(), loadKnownExercises(), loadKnownCardio(), loadDayNotes(), loadProfile(), loadWeeklyPlan()]);
+
+    document.getElementById("reset-confirm-panel").style.display = "none";
+    btn.textContent = "Yes, delete everything";
+    showToast("Account data reset");
+    render();
+    switchView("log");
   });
 
   /* ============================================
