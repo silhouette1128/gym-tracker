@@ -401,6 +401,123 @@
   .cardio-panel .submit-btn { background: var(--cardio); }
   .cardio-panel .submit-btn:hover { background: #632F35; }
   #coach-dashboard { display: none; }
+  #coach-plan-preview { display: none; }
+
+  /* ---------- Plan preview (per-day editable cards) ---------- */
+  .plan-day-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+  }
+  .plan-day-card:last-child { margin-bottom: 0; }
+  .plan-day-title {
+    font-family: var(--font-heading);
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 10px;
+  }
+  .plan-exercise-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .plan-exercise-row:last-of-type { margin-bottom: 10px; }
+  .plan-exercise-row input {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    padding: 7px 9px;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--ink);
+  }
+  .plan-exercise-row .plan-exercise-name { flex: 2; min-width: 0; }
+  .plan-exercise-row .plan-sets,
+  .plan-exercise-row .plan-reps-low,
+  .plan-exercise-row .plan-reps-high { flex: 1; min-width: 0; }
+  .plan-exercise-remove {
+    width: 26px; height: 26px;
+    display: flex; align-items: center; justify-content: center;
+    background: none; border: none; border-radius: 7px;
+    color: var(--ink-soft);
+    cursor: pointer; flex-shrink: 0;
+  }
+  .plan-exercise-remove:hover { background: var(--danger-soft); color: var(--danger); }
+  .plan-add-exercise {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--accent);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+  }
+  .plan-rest-note { font-size: 13px; color: var(--ink-soft); font-style: italic; }
+
+  /* ---------- Checklist (Log tab, when following a plan) ---------- */
+  .checklist-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: opacity 0.15s ease;
+  }
+  .checklist-card:last-child { margin-bottom: 0; }
+  .checklist-card.done { opacity: 0.6; }
+  .checklist-fields { flex: 1; display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+  .checklist-fields input {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--ink);
+  }
+  .checklist-field-name { flex: 1 1 120px; min-width: 90px; }
+  .checklist-field-sets, .checklist-field-reps { width: 50px; flex: 0 0 auto; }
+  .checklist-field-weight { width: 64px; flex: 0 0 auto; }
+  .checklist-check {
+    width: 34px; height: 34px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 9px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: transparent;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  }
+  .checklist-check svg { width: 16px; height: 16px; }
+  .checklist-check.checked {
+    background: var(--workout);
+    border-color: var(--workout);
+    color: white;
+  }
+  .rest-day-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px 20px;
+    text-align: center;
+  }
+  .rest-day-panel .plan-day-title { font-size: 17px; margin-bottom: 6px; }
+  .rest-day-panel button {
+    background: none; border: none;
+    color: var(--accent);
+    font-size: 12.5px; font-weight: 700;
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 0;
+    margin-top: 8px;
+  }
   #coach-setup { display: none; }
   .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
   .log-target-note {
@@ -810,6 +927,8 @@
         <div class="error-msg" id="w-error"></div>
       </div>
 
+      <div class="form-panel" id="panel-workout-checklist"></div>
+
       <div class="form-panel" id="panel-food">
         <div class="field-row">
           <div class="field grow-2">
@@ -993,8 +1112,37 @@
             </select>
           </div>
         </div>
-        <button class="submit-btn" id="coach-save" type="button">Calculate my targets</button>
+        <div class="field-row">
+          <div class="field grow-2">
+            <label for="coach-days">Days per week you can train</label>
+            <select id="coach-days">
+              <option value="2">2 days</option>
+              <option value="3">3 days</option>
+              <option value="4" selected>4 days</option>
+              <option value="5">5 days</option>
+              <option value="6">6 days</option>
+            </select>
+          </div>
+        </div>
+        <button class="submit-btn" id="coach-save" type="button">Generate my plan</button>
         <div class="error-msg" id="coach-error"></div>
+      </div>
+    </div>
+
+    <div id="coach-plan-preview">
+      <div class="panel">
+        <div class="panel-subtitle">
+          <span data-icon="coach"></span> Your suggested weekly plan
+        </div>
+        <p style="margin: 0 0 16px; font-size: 13px; color: var(--ink-soft); line-height: 1.5;">
+          Sets and rep ranges are based on standard strength-training guidelines for your goal. No weight is suggested — that depends entirely on your current strength, which only your own logged history can tell us. You can edit anything below before accepting.
+        </p>
+        <div id="coach-plan-days"></div>
+        <div class="field-row" style="gap: 10px; margin-top: 16px; margin-bottom: 0;">
+          <button class="submit-btn" id="coach-plan-accept" type="button" style="margin-top: 0;">Accept &amp; follow this plan</button>
+          <button class="tab-btn" id="coach-plan-regenerate" type="button">Regenerate</button>
+          <button class="tab-btn" id="coach-plan-cancel" type="button">Cancel</button>
+        </div>
       </div>
     </div>
 
@@ -1015,6 +1163,16 @@
           <div class="logs-box-title">Insights</div>
         </div>
         <div class="logs-box-body" id="coach-insights"></div>
+      </div>
+
+      <div class="panel" id="coach-plan-status">
+        <div class="panel-subtitle">
+          <span data-icon="coach"></span> <span id="coach-plan-status-text">Not following a plan yet</span>
+        </div>
+        <div class="field-row" style="gap: 10px; margin-bottom: 0;">
+          <button class="tab-btn" id="coach-view-plan" type="button">View / edit my plan</button>
+          <button class="tab-btn" id="coach-stop-plan" type="button" style="display: none;">Stop following plan</button>
+        </div>
       </div>
 
       <button class="tab-btn" id="coach-edit" type="button" style="max-width: 200px;">Edit my info</button>
@@ -1431,6 +1589,7 @@
     document.getElementById("log-heading").textContent = isToday ? "Entries today" : "Entries";
     document.getElementById("day-focus-input").value = dayNotes[selectedDate] || "";
     updateCardioVisibility();
+    updateWorkoutPanelMode();
     document.getElementById("log-target-note").innerHTML = isToday
       ? "Logging to <strong>today</strong>"
       : `Logging to <strong>${formatDateLabel(selectedDate)}</strong> — not today`;
@@ -1743,8 +1902,8 @@
   tabWorkout.addEventListener("click", () => {
     tabWorkout.classList.add("active");
     tabFood.classList.remove("active");
-    panelWorkout.classList.add("active");
     panelFood.classList.remove("active");
+    updateWorkoutPanelMode();
     updateCardioVisibility();
   });
 
@@ -1753,6 +1912,7 @@
     tabWorkout.classList.remove("active");
     panelFood.classList.add("active");
     panelWorkout.classList.remove("active");
+    document.getElementById("panel-workout-checklist").classList.remove("active");
     updateCardioVisibility();
   });
 
@@ -1921,6 +2081,144 @@
     const isCardioDay = hasCardioFocus(document.getElementById("day-focus-input").value);
     const isWorkoutTab = document.getElementById("tab-workout").classList.contains("active");
     document.getElementById("cardio-panel").classList.toggle("visible", isCardioDay && isWorkoutTab);
+  }
+
+  /* ============================================
+     CHECKLIST MODE (Log tab, when following a Coach plan)
+     Replaces the manual workout form with today's planned exercises,
+     pre-filled — only weight needs typing. Checking an item off
+     creates a real entry via the same addEntry() used everywhere
+     else, so charts/streaks/plateau detection all keep working.
+     ============================================ */
+  const CHECK_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>`;
+
+  function updateWorkoutPanelMode() {
+    const manualEl = document.getElementById("panel-workout");
+    const checklistEl = document.getElementById("panel-workout-checklist");
+    const isWorkoutTabActive = document.getElementById("tab-workout").classList.contains("active");
+    const useChecklist = profile && profile.followPlan;
+
+    if (useChecklist) {
+      manualEl.classList.remove("active");
+      checklistEl.classList.toggle("active", isWorkoutTabActive);
+      if (isWorkoutTabActive) renderChecklist();
+    } else {
+      checklistEl.classList.remove("active");
+      manualEl.classList.toggle("active", isWorkoutTabActive);
+    }
+  }
+
+  function findMatchingEntry(exerciseName) {
+    return entries.find((e) => e.type === "workout" && e.dateKey === selectedDate && e.exercise.toLowerCase() === exerciseName.toLowerCase());
+  }
+
+  function findMatchingCardioEntry(activityName) {
+    return entries.find((e) => e.type === "cardio" && e.dateKey === selectedDate && e.activity.toLowerCase() === activityName.toLowerCase());
+  }
+
+  function renderChecklist() {
+    const container = document.getElementById("panel-workout-checklist");
+    container.innerHTML = "";
+
+    const dow = new Date(selectedDate + "T00:00:00").getDay();
+    const day = weeklyPlan[dow];
+
+    if (!day || day.dayType === "rest") {
+      const panel = document.createElement("div");
+      panel.className = "rest-day-panel";
+      panel.innerHTML = `
+        <div class="plan-day-title">Rest day</div>
+        <div style="font-size:13px;color:var(--ink-soft);">Nothing scheduled today. Recovery is part of the plan.</div>
+      `;
+      const link = document.createElement("button");
+      link.type = "button";
+      link.textContent = "Log something anyway";
+      link.addEventListener("click", () => {
+        document.getElementById("panel-workout-checklist").classList.remove("active");
+        document.getElementById("panel-workout").classList.add("active");
+      });
+      panel.appendChild(link);
+      container.appendChild(panel);
+      return;
+    }
+
+    if (day.dayType === "cardio") {
+      const suggestion = day.exercises[0] || { activity: "Running", duration: 30 };
+      const existing = findMatchingCardioEntry(suggestion.activity);
+      const card = document.createElement("div");
+      card.className = "checklist-card" + (existing ? " done" : "");
+      card.innerHTML = `
+        <div class="checklist-fields">
+          <input type="text" class="checklist-field-name" value="${existing ? existing.activity : suggestion.activity}" />
+          <input type="number" class="checklist-field-sets" style="width:64px;" value="${existing && existing.distance != null ? existing.distance : ""}" placeholder="km" />
+          <input type="number" class="checklist-field-reps" style="width:64px;" value="${existing && existing.duration != null ? existing.duration : suggestion.duration}" placeholder="min" />
+        </div>
+        <button type="button" class="checklist-check${existing ? " checked" : ""}">${CHECK_ICON}</button>
+      `;
+      const nameInput = card.querySelector(".checklist-field-name");
+      const distanceInput = card.querySelector(".checklist-field-sets");
+      const durationInput = card.querySelector(".checklist-field-reps");
+      const checkBtn = card.querySelector(".checklist-check");
+      checkBtn.addEventListener("click", () => {
+        if (existing) {
+          deleteEntry(existing.id);
+        } else {
+          const activity = resolveCardioName(nameInput.value.trim() || "Running");
+          addEntry({
+            type: "cardio", activity,
+            distance: distanceInput.value === "" ? null : Number(distanceInput.value),
+            duration: durationInput.value === "" ? null : Number(durationInput.value),
+          });
+        }
+        renderChecklist();
+      });
+      container.appendChild(card);
+      return;
+    }
+
+    // Regular workout day: one checklist card per planned exercise
+    day.exercises.forEach((planEx) => {
+      const existing = findMatchingEntry(planEx.exercise);
+      const card = document.createElement("div");
+      card.className = "checklist-card" + (existing ? " done" : "");
+      card.innerHTML = `
+        <div class="checklist-fields">
+          <input type="text" class="checklist-field-name" value="${existing ? existing.exercise : planEx.exercise}" />
+          <input type="number" class="checklist-field-sets" value="${existing && existing.sets != null ? existing.sets : planEx.sets}" placeholder="Sets" />
+          <input type="number" class="checklist-field-reps" value="${existing && existing.reps != null ? existing.reps : planEx.repsLow}" placeholder="Reps" />
+          <input type="number" class="checklist-field-weight" value="${existing && existing.weight != null ? existing.weight : ""}" placeholder="kg" />
+        </div>
+        <button type="button" class="checklist-check${existing ? " checked" : ""}">${CHECK_ICON}</button>
+      `;
+      const nameInput = card.querySelector(".checklist-field-name");
+      const setsInput = card.querySelector(".checklist-field-sets");
+      const repsInput = card.querySelector(".checklist-field-reps");
+      const weightInput = card.querySelector(".checklist-field-weight");
+      const checkBtn = card.querySelector(".checklist-check");
+
+      checkBtn.addEventListener("click", () => {
+        if (existing) {
+          deleteEntry(existing.id);
+        } else {
+          if (weightInput.value === "" || Number(weightInput.value) < 0) {
+            weightInput.focus();
+            showToast("Enter a weight to check this off");
+            return;
+          }
+          const exercise = resolveExerciseName(nameInput.value.trim() || planEx.exercise);
+          addEntry({
+            type: "workout", exercise,
+            sets: Number(setsInput.value) || planEx.sets,
+            reps: Number(repsInput.value) || planEx.repsLow,
+            weight: Number(weightInput.value),
+            toFailure: false,
+          });
+        }
+        renderChecklist();
+      });
+
+      container.appendChild(card);
+    });
   }
 
   document.getElementById("submit-cardio").addEventListener("click", () => {
@@ -2300,6 +2598,8 @@
       heightCm: row.height_cm,
       activityLevel: row.activity_level,
       goal: row.goal,
+      daysPerWeek: row.days_per_week,
+      followPlan: row.follow_plan,
       optedIn: row.opted_in,
     };
   }
@@ -2321,6 +2621,8 @@
         height_cm: p.heightCm,
         activity_level: p.activityLevel,
         goal: p.goal,
+        days_per_week: p.daysPerWeek,
+        follow_plan: !!p.followPlan,
         opted_in: true,
       }, { onConflict: "user_id" })
       .then(({ error }) => { if (error) console.error("Saving profile failed:", error); });
@@ -2372,25 +2674,239 @@
     return insights;
   }
 
+  /* ============================================
+     WEEKLY PLAN GENERATION
+     A rule-based split (not AI-generated): goal + days/week decide
+     the split type; each exercise gets a standard sets/rep range for
+     that goal. No weight is ever suggested — that depends entirely
+     on current strength, which only logged history can tell us.
+     ============================================ */
+  const DAY_NAMES = { 0: "Sunday", 1: "Monday", 2: "Tuesday", 3: "Wednesday", 4: "Thursday", 5: "Friday", 6: "Saturday" };
+  const WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0]; // Monday first, Sunday last
+
+  const REP_RANGES = {
+    fat_loss: { sets: 3, repsLow: 12, repsHigh: 15 },
+    endurance: { sets: 3, repsLow: 12, repsHigh: 15 },
+    maintenance: { sets: 3, repsLow: 8, repsHigh: 12 },
+    muscle_gain: { sets: 4, repsLow: 6, repsHigh: 10 },
+  };
+
+  const DAY_TYPE_LABELS = {
+    push: "Push", pull: "Pull", legs: "Legs", upper: "Upper Body",
+    lower: "Lower Body", full_body: "Full Body", cardio: "Cardio", rest: "Rest",
+  };
+
+  const DAY_TYPE_EXERCISES = {
+    push: ["Bench Presses", "Overhead Presses", "Incline Dumbbell Presses", "Tricep Pushdowns", "Lateral Raises"],
+    pull: ["Deadlifts", "Barbell Rows", "Pull Ups", "Bicep Curls", "Face Pulls"],
+    legs: ["Squats", "Romanian Deadlifts", "Leg Presses", "Leg Curls", "Calf Raises"],
+    upper: ["Bench Presses", "Barbell Rows", "Overhead Presses", "Bicep Curls", "Tricep Pushdowns"],
+    lower: ["Squats", "Romanian Deadlifts", "Leg Presses", "Leg Curls", "Calf Raises"],
+    full_body: ["Squats", "Bench Presses", "Barbell Rows", "Overhead Presses", "Planks"],
+  };
+
+  // Which day types make up a week, for a given days/week + goal.
+  // Fat-loss/endurance goals trade the last training day for cardio.
+  function getSplitDayTypes(daysPerWeek, goal) {
+    const wantsCardio = goal === "fat_loss" || goal === "endurance";
+    let types;
+    if (daysPerWeek <= 3) {
+      types = new Array(daysPerWeek).fill("full_body");
+    } else if (daysPerWeek === 4) {
+      types = ["upper", "lower", "upper", "lower"];
+    } else {
+      types = ["push", "pull", "legs", "push", "pull", "legs"].slice(0, daysPerWeek);
+    }
+    if (wantsCardio && types.length >= 2) types[types.length - 1] = "cardio";
+    return types;
+  }
+
+  function buildExercisesForDayType(dayType, goal) {
+    if (dayType === "rest") return [];
+    if (dayType === "cardio") return [{ activity: "Running", duration: 30 }];
+    const range = REP_RANGES[goal] || REP_RANGES.maintenance;
+    return (DAY_TYPE_EXERCISES[dayType] || []).map((exercise) => ({
+      exercise, sets: range.sets, repsLow: range.repsLow, repsHigh: range.repsHigh,
+    }));
+  }
+
+  // Returns an object keyed by day-of-week (0=Sun..6=Sat, matching
+  // Date.getDay()) — training days assigned Monday-first, remaining
+  // days marked rest.
+  function generateWeeklyPlan(daysPerWeek, goal) {
+    const dayTypes = getSplitDayTypes(daysPerWeek, goal);
+    const plan = {};
+    WEEKDAY_ORDER.forEach((dow, i) => {
+      const dayType = i < dayTypes.length ? dayTypes[i] : "rest";
+      plan[dow] = { dayType, exercises: buildExercisesForDayType(dayType, goal) };
+    });
+    return plan;
+  }
+
+  let weeklyPlan = {}; // keyed by day-of-week, loaded from workout_plans
+  let lastGeneratedPlan = null; // holds a freshly generated (not-yet-saved) plan, for the preview screen
+
+  async function loadWeeklyPlan() {
+    const { data, error } = await sb.from("workout_plans").select("*");
+    weeklyPlan = {};
+    if (error) { console.error("Failed to load weekly plan:", error); return; }
+    data.forEach((row) => {
+      weeklyPlan[row.day_of_week] = { dayType: row.day_type, exercises: row.exercises || [] };
+    });
+  }
+
+  function saveWeeklyPlan(plan) {
+    weeklyPlan = plan;
+    const rows = Object.keys(plan).map((dow) => ({
+      user_id: currentUser.id,
+      day_of_week: Number(dow),
+      day_type: plan[dow].dayType,
+      exercises: plan[dow].exercises,
+    }));
+    sb.from("workout_plans").upsert(rows, { onConflict: "user_id,day_of_week" }).then(({ error }) => {
+      if (error) console.error("Saving weekly plan failed:", error);
+    });
+  }
+
+  /* ============================================
+     PLAN PREVIEW (editable, before accepting)
+     ============================================ */
+  function renderPlanPreview(plan) {
+    const container = document.getElementById("coach-plan-days");
+    container.innerHTML = "";
+
+    WEEKDAY_ORDER.forEach((dow) => {
+      const day = plan[dow];
+      const card = document.createElement("div");
+      card.className = "plan-day-card";
+      card.dataset.dow = dow;
+
+      const title = document.createElement("div");
+      title.className = "plan-day-title";
+      title.textContent = `${DAY_NAMES[dow]} — ${DAY_TYPE_LABELS[day.dayType]}`;
+      card.appendChild(title);
+
+      if (day.dayType === "rest") {
+        const note = document.createElement("div");
+        note.className = "plan-rest-note";
+        note.textContent = "Rest day — nothing scheduled.";
+        card.appendChild(note);
+      } else if (day.dayType === "cardio") {
+        const row = document.createElement("div");
+        row.className = "plan-exercise-row";
+        row.innerHTML = `
+          <input type="text" class="plan-cardio-activity" value="${day.exercises[0]?.activity || "Running"}" style="flex:2;" />
+          <input type="number" class="plan-cardio-duration" value="${day.exercises[0]?.duration || 30}" style="flex:1;" placeholder="min" />
+        `;
+        card.appendChild(row);
+      } else {
+        const list = document.createElement("div");
+        list.className = "plan-exercise-list";
+        day.exercises.forEach((ex) => list.appendChild(buildPlanExerciseRow(ex)));
+        card.appendChild(list);
+
+        const addBtn = document.createElement("button");
+        addBtn.type = "button";
+        addBtn.className = "plan-add-exercise";
+        addBtn.textContent = "+ Add exercise";
+        addBtn.addEventListener("click", () => {
+          list.appendChild(buildPlanExerciseRow({ exercise: "", sets: 3, repsLow: 8, repsHigh: 12 }));
+        });
+        card.appendChild(addBtn);
+      }
+
+      container.appendChild(card);
+    });
+  }
+
+  function buildPlanExerciseRow(ex) {
+    const row = document.createElement("div");
+    row.className = "plan-exercise-row";
+    row.innerHTML = `
+      <input type="text" class="plan-exercise-name" value="${ex.exercise || ""}" placeholder="Exercise" />
+      <input type="number" class="plan-sets" value="${ex.sets}" placeholder="Sets" />
+      <input type="number" class="plan-reps-low" value="${ex.repsLow}" placeholder="Reps low" />
+      <input type="number" class="plan-reps-high" value="${ex.repsHigh}" placeholder="Reps high" />
+      <button type="button" class="plan-exercise-remove" aria-label="Remove exercise">${ICONS.trash}</button>
+    `;
+    row.querySelector(".plan-exercise-remove").addEventListener("click", () => row.remove());
+    return row;
+  }
+
+  // Reads the currently-displayed (possibly edited) preview back into
+  // a plan object, ready to save.
+  function readPlanFromPreview() {
+    const plan = {};
+    document.querySelectorAll("#coach-plan-days .plan-day-card").forEach((card) => {
+      const dow = Number(card.dataset.dow);
+      const cardioActivity = card.querySelector(".plan-cardio-activity");
+      if (cardioActivity) {
+        const duration = card.querySelector(".plan-cardio-duration");
+        plan[dow] = { dayType: "cardio", exercises: [{ activity: cardioActivity.value.trim() || "Running", duration: Number(duration.value) || 30 }] };
+        return;
+      }
+      const restNote = card.querySelector(".plan-rest-note");
+      if (restNote) {
+        plan[dow] = { dayType: "rest", exercises: [] };
+        return;
+      }
+      const exercises = [];
+      card.querySelectorAll(".plan-exercise-row").forEach((row) => {
+        const name = row.querySelector(".plan-exercise-name").value.trim();
+        if (!name) return; // skip blank rows
+        exercises.push({
+          exercise: name,
+          sets: Number(row.querySelector(".plan-sets").value) || 1,
+          repsLow: Number(row.querySelector(".plan-reps-low").value) || 1,
+          repsHigh: Number(row.querySelector(".plan-reps-high").value) || 1,
+        });
+      });
+      // recover the original dayType label (title text before the em dash)
+      const titleText = card.querySelector(".plan-day-title").textContent;
+      const dayTypeLabel = titleText.split("—")[1]?.trim() || "Full Body";
+      const dayType = Object.keys(DAY_TYPE_LABELS).find((k) => DAY_TYPE_LABELS[k] === dayTypeLabel) || "full_body";
+      plan[dow] = { dayType, exercises };
+    });
+    return plan;
+  }
+
+  function showPlanPreview(plan) {
+    lastGeneratedPlan = plan;
+    renderPlanPreview(plan);
+    document.getElementById("coach-intro").style.display = "none";
+    document.getElementById("coach-setup").style.display = "none";
+    document.getElementById("coach-dashboard").style.display = "none";
+    document.getElementById("coach-plan-preview").style.display = "block";
+  }
+
   function renderCoach() {
     const introEl = document.getElementById("coach-intro");
     const setupEl = document.getElementById("coach-setup");
+    const previewEl = document.getElementById("coach-plan-preview");
     const dashboardEl = document.getElementById("coach-dashboard");
 
     if (!profile || !profile.optedIn) {
       introEl.style.display = "block";
       setupEl.style.display = "none";
+      previewEl.style.display = "none";
       dashboardEl.style.display = "none";
       return;
     }
 
     introEl.style.display = "none";
     setupEl.style.display = "none";
+    previewEl.style.display = "none";
     dashboardEl.style.display = "block";
 
     const targets = calculateCoachTargets(profile);
     animateStatValue("coach-calorie-target", targets.calories);
     document.getElementById("coach-protein-target").textContent = `${targets.protein}g`;
+
+    document.getElementById("coach-plan-status-text").textContent =
+      profile.followPlan ? "Following your weekly plan" : "Not following a plan yet";
+    document.getElementById("coach-stop-plan").style.display = profile.followPlan ? "inline-flex" : "none";
+    document.getElementById("coach-view-plan").textContent =
+      profile.followPlan ? "View / edit my plan" : "Generate a plan";
 
     const insightsEl = document.getElementById("coach-insights");
     insightsEl.innerHTML = "";
@@ -2425,6 +2941,7 @@
     document.getElementById("coach-height").value = p.heightCm ?? "";
     document.getElementById("coach-activity").value = p.activityLevel ?? "moderate";
     document.getElementById("coach-goal").value = p.goal ?? "muscle_gain";
+    document.getElementById("coach-days").value = p.daysPerWeek ?? "4";
   }
 
   document.getElementById("coach-save").addEventListener("click", () => {
@@ -2437,6 +2954,7 @@
     const heightCm = document.getElementById("coach-height").value;
     const activityLevel = document.getElementById("coach-activity").value;
     const goal = document.getElementById("coach-goal").value;
+    const daysPerWeek = Number(document.getElementById("coach-days").value);
 
     if (!age || Number(age) <= 0) return (errorEl.textContent = "Enter a valid age.");
     if (!sex) return (errorEl.textContent = "Select a sex.");
@@ -2445,10 +2963,10 @@
 
     saveProfile({
       age: Number(age), sex, weightKg: Number(weightKg), heightCm: Number(heightCm),
-      activityLevel, goal, optedIn: true,
+      activityLevel, goal, daysPerWeek, followPlan: profile ? profile.followPlan : false, optedIn: true,
     });
-    showToast("Coach targets calculated");
-    renderCoach();
+    showToast("Targets calculated");
+    showPlanPreview(generateWeeklyPlan(daysPerWeek, goal));
   });
 
   document.getElementById("coach-edit").addEventListener("click", () => {
@@ -2464,6 +2982,37 @@
 
   document.getElementById("coach-intro-no").addEventListener("click", () => {
     switchView("log");
+  });
+
+  document.getElementById("coach-plan-accept").addEventListener("click", () => {
+    const plan = readPlanFromPreview();
+    saveWeeklyPlan(plan);
+    saveProfile({ ...profile, followPlan: true });
+    showToast("Plan saved — check your Log tab");
+    renderCoach();
+    updateWorkoutPanelMode();
+  });
+
+  document.getElementById("coach-plan-regenerate").addEventListener("click", () => {
+    showPlanPreview(generateWeeklyPlan(profile.daysPerWeek, profile.goal));
+  });
+
+  document.getElementById("coach-plan-cancel").addEventListener("click", () => {
+    renderCoach();
+  });
+
+  document.getElementById("coach-view-plan").addEventListener("click", () => {
+    const basisPlan = (profile.followPlan && Object.keys(weeklyPlan).length > 0)
+      ? weeklyPlan
+      : generateWeeklyPlan(profile.daysPerWeek, profile.goal);
+    showPlanPreview(basisPlan);
+  });
+
+  document.getElementById("coach-stop-plan").addEventListener("click", () => {
+    saveProfile({ ...profile, followPlan: false });
+    showToast("Switched back to manual logging");
+    renderCoach();
+    updateWorkoutPanelMode();
   });
 
   /* ============================================
@@ -2632,7 +3181,7 @@
   // from the database, then reveals the actual app.
   async function handleSignedIn(user) {
     currentUser = user;
-    await Promise.all([loadEntries(), loadKnownExercises(), loadKnownCardio(), loadDayNotes(), loadProfile()]);
+    await Promise.all([loadEntries(), loadKnownExercises(), loadKnownCardio(), loadDayNotes(), loadProfile(), loadWeeklyPlan()]);
     syncDateInput();
     showApp();
     render();
@@ -2661,7 +3210,7 @@
   document.getElementById("nav-logout").addEventListener("click", async () => {
     await sb.auth.signOut();
     currentUser = null;
-    entries = []; dayNotes = {}; knownExercises = []; knownCardio = []; profile = null;
+    entries = []; dayNotes = {}; knownExercises = []; knownCardio = []; profile = null; weeklyPlan = {};
     document.getElementById("auth-email").value = "";
     document.getElementById("auth-password").value = "";
     document.getElementById("auth-error").textContent = "";
