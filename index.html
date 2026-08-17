@@ -983,8 +983,10 @@
   let editingId = null; // id of the entry currently shown in edit mode, or null
 
   function todayKey() {
-    // Gives us "2026-08-06" so we can group entries by day
-    return new Date().toISOString().slice(0, 10);
+    // Gives us "2026-08-06" using LOCAL date components — see the
+    // dateKeyOf() comment further down for why toISOString() would be
+    // wrong here (it silently shifts the date in timezones ahead of UTC).
+    return dateKeyOf(new Date());
   }
 
   function formatDateLabel(key) {
@@ -1647,6 +1649,7 @@
     tabFood.classList.remove("active");
     panelWorkout.classList.add("active");
     panelFood.classList.remove("active");
+    updateCardioVisibility();
   });
 
   tabFood.addEventListener("click", () => {
@@ -1654,6 +1657,7 @@
     tabWorkout.classList.remove("active");
     panelFood.classList.add("active");
     panelWorkout.classList.remove("active");
+    updateCardioVisibility();
   });
 
   /* ============================================
@@ -1819,7 +1823,8 @@
 
   function updateCardioVisibility() {
     const isCardioDay = hasCardioFocus(document.getElementById("day-focus-input").value);
-    document.getElementById("cardio-panel").classList.toggle("visible", isCardioDay);
+    const isWorkoutTab = document.getElementById("tab-workout").classList.contains("active");
+    document.getElementById("cardio-panel").classList.toggle("visible", isCardioDay && isWorkoutTab);
   }
 
   document.getElementById("submit-cardio").addEventListener("click", () => {
@@ -2184,8 +2189,17 @@
   const HEATMAP_WEEKS = 12;
   const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
+  // Converts a Date object into a "YYYY-MM-DD" string using LOCAL date
+  // components (getFullYear/getMonth/getDate), not toISOString(). This
+  // matters: toISOString() always converts to UTC first, which silently
+  // shifts the date backward by one day for anyone in a timezone ahead
+  // of UTC (like India, UTC+5:30) — exactly the bug that made today's
+  // entries not show up as "logged" in the heatmap.
   function dateKeyOf(d) {
-    return d.toISOString().slice(0, 10);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
   }
 
   function renderHeatmap() {
