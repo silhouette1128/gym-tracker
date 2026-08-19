@@ -294,6 +294,10 @@
     transition: transform 0.1s ease;
   }
   .heatmap-cell.logged { background: var(--workout); }
+  .heatmap-cell.cardio { background: var(--cardio); }
+  .heatmap-cell.both {
+    background: linear-gradient(135deg, var(--workout) 50%, var(--cardio) 50%);
+  }
   .heatmap-cell.future { background: transparent; }
   .heatmap-cell:hover { transform: scale(1.25); }
   .consistency-rating {
@@ -3323,9 +3327,15 @@
   }
 
   function renderHeatmap() {
+    // Combined set — used for streaks/consistency, where any logged
+    // activity (workout or cardio) counts the same.
     const loggedDates = new Set(
       entries.filter((e) => e.type === "workout" || e.type === "cardio").map((e) => e.dateKey)
     );
+    // Separate sets — used only for cell coloring, so a pure-cardio
+    // day, a pure-strength day, and a day with both look different.
+    const workoutOnlyDates = new Set(entries.filter((e) => e.type === "workout").map((e) => e.dateKey));
+    const cardioOnlyDates = new Set(entries.filter((e) => e.type === "cardio").map((e) => e.dateKey));
     const todayDate = new Date(TODAY + "T00:00:00");
 
     // Find the Monday of the current week, then step back to the
@@ -3357,8 +3367,13 @@
         cell.className = "heatmap-cell";
         if (cellDate > todayDate) {
           cell.classList.add("future"); // hasn't happened yet — render blank
-        } else if (loggedDates.has(dateKeyOf(cellDate))) {
-          cell.classList.add("logged");
+        } else {
+          const key = dateKeyOf(cellDate);
+          const hasWorkout = workoutOnlyDates.has(key);
+          const hasCardio = cardioOnlyDates.has(key);
+          if (hasWorkout && hasCardio) cell.classList.add("both");
+          else if (hasCardio) cell.classList.add("cardio");
+          else if (hasWorkout) cell.classList.add("logged");
         }
         cell.title = dateKeyOf(cellDate);
         gridEl.appendChild(cell);
